@@ -5,6 +5,7 @@
 
 # Thoughts:
 # Maybe this should have been fitted with a time series instead 
+# Plot comparison of regions
 
 # Setup
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
