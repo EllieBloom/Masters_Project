@@ -1,11 +1,16 @@
 # Exploring the impact of NPIs on mobility
 
+# Date started: 23rd May 2022
+
 # Inspiration for some models:
 # https://www.nature.com/articles/s41598-021-02133-1.pdf
 
 # Thoughts:
 # Maybe this should have been fitted with a time series instead 
 # Plot comparison of regions
+
+# Could do a boxplot of average for each month March 2020-May 2022 by region
+
 
 # Setup
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -227,6 +232,9 @@ drop_lockdown1 <- average_pre_lockdown1-min_england_lockdown1
 drop_lockdown1 # 79.7 percentage point max decrease in mobility
 
 regional_drop_summary<-NA
+min=NA
+average_pre=NA
+drop=NA
 
 for (i in 1:length(england_sub_region_1)){
   google_regional <- google_england_lockdown1 %>% filter(sub_region_1==england_sub_region_1[i])
@@ -464,12 +472,6 @@ models_2_coefs<-coef(models_2, augFrame = TRUE)
 
 
 # Changing the column order
-col_order <-c("(Intercept)", "days_since_lockdown",
-              "dayMonday","dayTuesday", "dayWednesday", 
-              "dayThursday",  "dayFriday","daySaturday")
-
-
-models_2_coefs <- models_coefs[, col_order]
 models_2_coefs
 
 # Exporting this as csv
@@ -644,14 +646,6 @@ models_3 <- lmList(workplaces_percent_change_from_baseline ~
 # Gives all models
 models_3_coefs<-coef(models_3, augFrame = TRUE)
 
-
-# Changing the column order
-col_order <-c("(Intercept)", "days_since_lockdown", "bank_holiday1",
-              "dayMonday","dayTuesday", "dayWednesday", 
-              "dayThursday",  "dayFriday","daySaturday")
-
-
-models_3_coefs <- models_coefs[, col_order]
 models_3_coefs
 
 # Exporting this as csv
