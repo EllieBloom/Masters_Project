@@ -16,6 +16,8 @@
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
 library(gtsummary)
+library(zoo)
+library(reshape2)
 
 # Loading Google data
 
@@ -57,7 +59,111 @@ str(google_overall$day)
 # Filterting for GB dataset
 google_gb <- google_overall %>% filter(sub_region_1=="") # Where there is no sub-region, the data is for GB overall
 
+# Looking at correlations between metrics
 
+#  Correlations between metrics at GB level -----------------------------
+
+
+# Correlation matrix
+
+# Rename the columns to make visualisation easier
+
+
+google_gb_renamed <- google_gb  
+colnames(google_gb_renamed)[11:16]<-c("Retail","Grocery and Pharmacy","Parks",
+                                      "Transit Stations", "Workplaces", "Residential")
+
+# Correlation matrix
+cormat <- round(cor(google_gb_renamed[,c("Retail","Grocery and Pharmacy","Parks",
+                                 "Transit Stations", "Workplaces", "Residential")]),2)
+# Make long
+
+library(reshape2)
+melted_cormat <- melt(cormat)
+head(melted_cormat)
+
+# Preparing visualisation
+
+# Get lower triangle of the correlation matrix
+get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+}
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
+upper_tri <- get_upper_tri(cormat)
+upper_tri
+
+
+# Melt the correlation matrix
+
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+# Heatmap
+
+ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  coord_fixed()
+
+# Reorder the correlation matrix
+reorder_cormat <- function(cormat){
+  # Use correlation between variables as distance
+  dd <- as.dist((1-cormat)/2)
+  hc <- hclust(dd)
+  cormat <-cormat[hc$order, hc$order]
+}
+
+# Reorder the correlation matrix
+cormat <- reorder_cormat(cormat)
+upper_tri <- get_upper_tri(cormat)
+# Melt the correlation matrix
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+# Create a ggheatmap
+ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal()+ # minimal theme
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 12, hjust = 1))+
+  coord_fixed()
+# Print the heatmap
+print(ggheatmap)
+
+# Add correlation coefficients
+
+ggheatmap_final<- ggheatmap + 
+                  geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
+                  ggtitle("Correlation heatmap of Google Mobility at GB level") +
+                  theme(
+                    axis.title.x = element_blank(),
+                    axis.title.y = element_blank(),
+                    panel.grid.major = element_blank(),
+                    panel.border = element_blank(),
+                    panel.background = element_blank(),
+                    axis.ticks = element_blank(),
+                    legend.justification = c(1, 0),
+                    legend.position = c(0.6, 0.7),
+                    legend.direction = "horizontal")+
+                  guides(fill = guide_colorbar(barwidth = 7, barheight = 1,
+                                               title.position = "top", title.hjust = 0.5))
+
+
+
+ggheatmap_final
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/NPIs_mobility/Outputs")
+ggsave("GB_mobility_heatmap.pdf",ggheatmap_final)
 
 # First lockdown - workplace mobility---------------------------------------------
 
@@ -132,10 +238,8 @@ plot_gb_lockdown1
 ggsave("GB_workplace_lockdown1_regression_plot.pdf", plot=plot_gb_lockdown1, device="pdf")
 
 
-  
 
-
-## England - regional -------------------------------------------------------------
+## England - regional regressions ---------------------------------------------------
 
 england_sub_region_1 <- c("Bath and North East Somerset","Bedford", "Blackburn with Darwen",
                           "Blackpool", "Borough of Halton","Bracknell Forest","Brighton and Hove", 
@@ -204,6 +308,7 @@ models_coefs <- models_coefs[, col_order]
 models_coefs
 
 # Exporting this as csv
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/NPIs_mobility/Outputs")
 write.csv(models_coefs,"Regional_workplace_lockdown1_regression_results.csv")
 
 # Exploring the trends in the increase in mobility since lockdown
@@ -219,6 +324,12 @@ rownames(models_coefs)[which.min(models_coefs$'(Intercept)')] # Bath has the low
 
 max(models_coefs$'(Intercept)')
 rownames(models_coefs)[which.max(models_coefs$'(Intercept)')] # Peterborough has the highest intercept at -43.39
+
+
+
+
+
+
 
 
 
@@ -239,24 +350,28 @@ drop=NA
 for (i in 1:length(england_sub_region_1)){
   google_regional <- google_england_lockdown1 %>% filter(sub_region_1==england_sub_region_1[i])
   google_regional_prelockdown <- google_england %>% filter(sub_region_1==england_sub_region_1[i])
-  min = min(google_regional$workplaces_percent_change_from_baseline, na.rm=TRUE)
+  min = min(google_regional$workplaces_percent_change_from_baseline[!(google_regional$date %in% bank_holidays)], na.rm=TRUE)
   print(min)
-  average_pre = mean(google_regional_prelockdown$workplaces_percent_change_from_baseline[google_regional_prelockdown$date<pre_lockdown1_end_date
-                                                                             &google_regional_prelockdown$date>=pre_lockdown1_end_date-14], na.rm=TRUE)
+  min_id = which.min(google_regional$workplaces_percent_change_from_baseline)
+  mobility_30days = mean(google_regional$workplaces_percent_change_from_baseline[min_id+27:min_id+33]) # Centre rolling average to smooth
+  rebound_30days = mobility_30days -min
+  print(rebound_30days)
+  average_pre = mean(google_regional_prelockdown$workplaces_percent_change_from_baseline[google_regional_prelockdown$date<pre_lockdown1_end_date &google_regional_prelockdown$date>=pre_lockdown1_end_date-14], na.rm=TRUE)
   print(average_pre)
   drop = average_pre - min 
-  regional_drop_summary <- rbind(regional_drop_summary,c(england_sub_region_1[i],min,average_pre,drop))
+  regional_drop_summary <- rbind(regional_drop_summary,c(england_sub_region_1[i],min,average_pre,drop,min_id,mobility_30days, rebound_30days))
 }
-
 
 
 regional_drop_summary <- regional_drop_summary[-1,]
 
-colnames(regional_drop_summary) <- c("sub_region_1","Pre_lockdown_av","Min_during_lockdown","Drop")
+colnames(regional_drop_summary) <- c("sub_region_1","Min_during_lockdown","Pre_lockdown_av","Drop","Min_days","Mobility_30days","Rebound_30days")
 regional_drop_summary <- as.data.frame(regional_drop_summary)
+
 
 regional_drop_summary
 # Exporting this as csv
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/NPIs_mobility/Outputs")
 write.csv(regional_drop_summary,"Regional_lockdown1_drop.csv")
 
 # Smallest drop for... Greater London at 67.5 percentage points
@@ -270,6 +385,14 @@ regional_drop_summary$sub_region_1[which.max(regional_drop_summary$Drop)]
 # Excluding Rutland (as this is too small)!
 max(regional_drop_summary$Drop[regional_drop_summary$sub_region_1!="Rutland"])
 regional_drop_summary$sub_region_1[which.max(regional_drop_summary$Drop[regional_drop_summary$sub_region_1!="Rutland"])] # Central Bedforshire has the greatest drop at 75.7
+
+
+
+
+
+
+
+
 
 
 
@@ -447,7 +570,7 @@ ggsave("GB_workplace_lockdown2_regression_plot.pdf", plot=plot_gb_lockdown2, dev
 
 
 
-## England - regional ------------------------------------------------------
+## England - regional regressions---------------------------------------------------
 
 
 # Defining data for first lockdown
@@ -508,23 +631,36 @@ regional_drop_summary_2<-NA
 min<-NA
 average_pre<-NA
 drop<-NA
+mobility_14days<-NA
+rebound_14days<-NA
 
 for (i in 1:length(england_sub_region_1)){
+  print(i)
   google_regional_2 <- google_england_lockdown2 %>% filter(sub_region_1==england_sub_region_1[i])
+  print(england_sub_region_1[i])
   google_regional_prelockdown2 <- google_england %>% filter(sub_region_1==england_sub_region_1[i])
-  min = min(google_regional_2$workplaces_percent_change_from_baseline, na.rm=TRUE)
-  average_pre = mean(google_regional_prelockdown2$workplaces_percent_change_from_baseline[google_regional_prelockdown2$date<pre_lockdown2_end_date
-                                                                                         &google_regional_prelockdown2$date>=pre_lockdown2_end_date-14], na.rm=TRUE)
+  min = min(google_regional_2$workplaces_percent_change_from_baseline[!(google_regional_2$date %in% bank_holidays)], na.rm=TRUE)
+  print(min)
+  min_id = which.min(google_regional_2$workplaces_percent_change_from_baseline)
+  mobility_14days = mean(google_regional_2$workplaces_percent_change_from_baseline[min_id+14]) # Centre rolling average to smooth
+  print(mobility_14days)
+  rebound_14days = mobility_14days -min
+  print(rebound_14days)
+  average_pre = mean(google_regional_prelockdown2$workplaces_percent_change_from_baseline[google_regional_prelockdown2$date<pre_lockdown2_end_date &google_regional_prelockdown2$date>=pre_lockdown2_end_date-14], na.rm=TRUE)
+  print(average_pre)
   drop = average_pre - min 
-  regional_drop_summary_2 <- rbind(regional_drop_summary_2,c(england_sub_region_1[i],min,average_pre,drop))
+  regional_drop_summary_2 <- rbind(regional_drop_summary_2,c(england_sub_region_1[i],min,average_pre,drop,min_id,mobility_14days, rebound_14days))
 }
+
 
 regional_drop_summary_2 <- regional_drop_summary_2[-1,]
 
-colnames(regional_drop_summary_2) <- c("sub_region_1","Pre_lockdown_av","Min_during_lockdown","Drop")
+colnames(regional_drop_summary_2) <- c("sub_region_1","Min_during_lockdown","Pre_lockdown_av","Drop","Min_days","Mobility_14days","Rebound_14days")
 regional_drop_summary_2 <- as.data.frame(regional_drop_summary_2)
 
 regional_drop_summary_2
+
+## The lockdown may be too short for this to work well - not all get beyond 14 days after the minium...
 
 # Exporting this as csv
 write.csv(regional_drop_summary_2,"Regional_lockdown2_drop.csv")
@@ -625,7 +761,7 @@ ggsave("GB_workplace_lockdown3_regression_plot.pdf", plot=plot_gb_lockdown3, dev
 
 
 
-## England - regional ------------------------------------------------------
+## England - regional regressions ------------------------------------------------
 
 
 # Defining data for first lockdown
@@ -682,22 +818,31 @@ min<-NA
 average_pre<-NA
 drop<-NA
 
+
 for (i in 1:length(england_sub_region_1)){
   google_regional_3 <- google_england_lockdown3 %>% filter(sub_region_1==england_sub_region_1[i])
   google_regional_prelockdown3 <- google_england %>% filter(sub_region_1==england_sub_region_1[i])
-  min = min(google_regional_3$workplaces_percent_change_from_baseline, na.rm=TRUE)
-  average_pre = mean(google_regional_prelockdown3$workplaces_percent_change_from_baseline[google_regional_prelockdown3$date<pre_lockdown3_end_date
-                                                                                          &google_regional_prelockdown3$date>=pre_lockdown3_end_date-14], na.rm=TRUE)
+  min = min(google_regional_3$workplaces_percent_change_from_baseline[!(google_regional_3$date %in% bank_holidays)], na.rm=TRUE)
+  print(min)
+  min_id = which.min(google_regional_3$workplaces_percent_change_from_baseline[!(google_regional_3$date %in% bank_holidays)])
+  mobility_30days = mean(google_regional_3$workplaces_percent_change_from_baseline[min_id+27:min_id+33],na.rm=TRUE) # Centre rolling average to smooth
+  rebound_30days = mobility_30days -min
+  print(rebound_30days)
+  average_pre = mean(google_regional_prelockdown3$workplaces_percent_change_from_baseline[google_regional_prelockdown3$date<pre_lockdown3_end_date &google_regional_prelockdown3$date>=pre_lockdown3_end_date-14], na.rm=TRUE)
+  print(average_pre)
   drop = average_pre - min 
-  regional_drop_summary_3 <- rbind(regional_drop_summary_3,c(england_sub_region_1[i],min,average_pre,drop))
+  regional_drop_summary_3 <- rbind(regional_drop_summary_3,c(england_sub_region_1[i],min,average_pre,drop,min_id,mobility_30days, rebound_30days))
 }
+
 
 regional_drop_summary_3 <- regional_drop_summary_3[-1,]
 
-colnames(regional_drop_summary_3) <- c("sub_region_1","Pre_lockdown_av","Min_during_lockdown","Drop")
+colnames(regional_drop_summary_3) <- c("sub_region_1","Min_during_lockdown","Pre_lockdown_av","Drop","Min_days","Mobility_30days","Rebound_30days")
 regional_drop_summary_3 <- as.data.frame(regional_drop_summary_3)
 
 regional_drop_summary_3
+
+
 
 # Exporting this as csv
 write.csv(regional_drop_summary_3,"Regional_lockdown3_drop.csv")
