@@ -8,6 +8,7 @@
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
 library(fpp3)
+library(slider) #for the moving averages
 
 # Loading Google data
 
@@ -236,5 +237,39 @@ components(dcmp_parks) %>%
 
 
 #  Continue with 3.3 moving averages --------------------------------------
-# Narrow down to just lockdown 1 soon??
+
+london_ma <- london_combined_tibble %>%
+  mutate(
+    `7-MA` = slide_dbl(workplaces_percent_change_from_baseline, mean, .before = 3, .after = 3, .complete = TRUE),)
+
+london_ma %>%
+  autoplot(workplaces_percent_change_from_baseline, colour = "gray") +
+  geom_line(aes(y = `7-MA`), colour = "#D55E00") +
+  labs(y = "Moving average change from baseline movement (percentage)",
+       title = "London workplace movement - 7-MA ")+
+  theme_light()
+
+
+
+# STL decomposition -------------------------------------------------------
+
+london_combined_tibble %>%
+  model(
+    STL(workplaces_percent_change_from_baseline ~ trend(window = 7) +
+          season(window = "periodic"),
+        robust = TRUE)) %>%
+  components() %>%
+  autoplot()
+
+
+
+# ACF features ----------------------------------------------------------
+
+
+london_combined_tibble %>% features(workplaces_percent_change_from_baseline, feat_acf)
+
+
+# STF features ------------------------------------------------------------
+
+london_combined_tibble %>% features(workplaces_percent_change_from_baseline, feat_stl)
 
