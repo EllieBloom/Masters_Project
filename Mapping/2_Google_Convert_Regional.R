@@ -107,24 +107,24 @@ names(google_england_combined)[names(google_england_combined) == "Freq"] <- "reg
 
 # Weighted average for mobility
 
-google_england_combined$parks_regional <- google_england_combined$parks_percent_change_from_baseline *
-
-# note there will be NAs...
-google_england_weighted <- google_england_combined %>%
-                                mutate(retail_recreation_weighted = (retail_and_recreation_percent_change_from_baseline*Population)) %>%
-                                mutate(grocery_pharmacy_weighted = (grocery_and_pharmacy_percent_change_from_baseline*Population)) %>%
-                                mutate(parks_weighted = (parks_percent_change_from_baseline*Population)/regional_population) %>%
-                                mutate(transit_stations_weighted = (transit_stations_percent_change_from_baseline*Population)) %>%
-                                mutate(workplaces_weighted = (workplaces_percent_change_from_baseline*Population)) %>%
-                                mutate(residential_weighted = (residential_percent_change_from_baseline*Population)) 
-
-# The NAs do matter!! they should be included in the population sum...! Come back to this - shouldn't be dividing by that population when the mobility is NA
-
-# Example of how to get weighted retail overall 
-retail_regional <- sum((google_england_combined$retail_and_recreation_percent_change_from_baseline*
-                              google_england_combined$Population)/sum(google_england_combined$Population[!is.na(google_england_combined$retail_and_recreation_percent_change_from_baseline)]), na.rm=TRUE)
-
-retail_regional
+# google_england_combined$parks_regional <- google_england_combined$parks_percent_change_from_baseline *
+# 
+# # note there will be NAs...
+# google_england_weighted <- google_england_combined %>%
+#                                 mutate(retail_recreation_weighted = (retail_and_recreation_percent_change_from_baseline*Population)) %>%
+#                                 mutate(grocery_pharmacy_weighted = (grocery_and_pharmacy_percent_change_from_baseline*Population)) %>%
+#                                 mutate(parks_weighted = (parks_percent_change_from_baseline*Population)/regional_population) %>%
+#                                 mutate(transit_stations_weighted = (transit_stations_percent_change_from_baseline*Population)) %>%
+#                                 mutate(workplaces_weighted = (workplaces_percent_change_from_baseline*Population)) %>%
+#                                 mutate(residential_weighted = (residential_percent_change_from_baseline*Population)) 
+# 
+# # The NAs do matter!! they should be included in the population sum...! Come back to this - shouldn't be dividing by that population when the mobility is NA
+# 
+# # Example of how to get weighted retail overall 
+# retail_regional <- sum((google_england_combined$retail_and_recreation_percent_change_from_baseline*
+#                               google_england_combined$Population)/sum(google_england_combined$Population[!is.na(google_england_combined$retail_and_recreation_percent_change_from_baseline)]), na.rm=TRUE)
+# 
+# retail_regional
 
 region_list <- unique(region_mapping$Region)
 regional_summary <- NA
@@ -138,17 +138,17 @@ for (i in 1:length(region_list)){
       regional_date <- regional %>% filter(date==date_range[j])
       # Creating new variable for each date and region combination:
       retail <- sum((regional_date$retail_and_recreation_percent_change_from_baseline*
-                       regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$retail_and_recreation_percent_change_from_baseline)]), na.rm=TRUE)
+                       regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$retail_and_recreation_percent_change_from_baseline)]), na.rm=TRUE)
       grocery <- sum((regional_date$grocery_and_pharmacy_percent_change_from_baseline*
-                       regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$grocery_and_pharmacy_percent_change_from_baseline)]), na.rm=TRUE)
+                       regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$grocery_and_pharmacy_percent_change_from_baseline)]), na.rm=TRUE)
       parks <- sum((regional_date$parks_percent_change_from_baseline*
-                        regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$parks_percent_change_from_baseline)]), na.rm=TRUE)     
+                        regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$parks_percent_change_from_baseline)]), na.rm=TRUE)     
       transit <- sum((regional_date$transit_stations_percent_change_from_baseline*
-                      regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$transit_stations_percent_change_from_baseline)]), na.rm=TRUE)    
+                      regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$transit_stations_percent_change_from_baseline)]), na.rm=TRUE)    
       workplaces <- sum((regional_date$workplaces_percent_change_from_baseline*
-                        regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$workplaces_percent_change_from_baseline)]), na.rm=TRUE)
+                        regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$workplaces_percent_change_from_baseline)]), na.rm=TRUE)
       residential <- sum((regional_date$residential_percent_change_from_baseline*
-                           regional_date$Population)/sum(regional_date$Population[!is.na(regional_date$residential_percent_change_from_baseline)]), na.rm=TRUE) 
+                           regional_date$regional_population)/sum(regional_date$regional_population[!is.na(regional_date$residential_percent_change_from_baseline)]), na.rm=TRUE) 
       
       new <- c(date_range[j],i,retail,grocery,parks,transit,workplaces,residential) # regions as numbers for the moment
       regional_summary<-rbind(regional_summary,new)
