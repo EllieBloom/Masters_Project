@@ -475,7 +475,8 @@ ccf(london_tibble_workplaces$mobility, london_tibble_workplaces$cases, type="cor
 
 # Maybe try with rolling averages to smooth weekly effects
 ccf_rolling_mean <-ccf(rollmean(london_tibble_workplaces$mobility, k=7, fill=NA, align="center"),
-                   rollmean(london_tibble_workplaces$cases, k=7, fill=NA, align="center"), lag.max=200, na.action=na.pass)
+                   rollmean(london_tibble_workplaces$cases, k=7, fill=NA, align="center"), 
+                   lag.max=200, na.action=na.pass)
 
 # Smooths out - lag appears to be at ~-60 -> seems like a long time?
 # Similar approach used here to network paper 2 -> could try to reproduce their figure 2
@@ -495,14 +496,18 @@ colnames(ccf_results) <- c("acf","lag")
 
 ggplot(data=ccf_results, aes(x=lag))+
   geom_line(aes(y=acf), color="royal blue") +
-  geom_hline(yintercept=0, linetype="dashed") +
+  geom_hline(yintercept=0, color="dark grey") +
+  geom_hline(yintercept = qnorm(0.975)/sqrt(nrow(london_tibble_workplaces)), linetype="dashed", color="dark grey")+ # upper CI bound (just uses quantiles)
+  geom_hline(yintercept = -qnorm(0.975)/sqrt(nrow(london_tibble_workplaces)), linetype="dashed", color="dark grey")+ # lower CI bound (just uses quantiles)
   annotate("pointrange", x=ccf_rolling_mean$lag[which.max(ccf_rolling_mean$acf)],
            y=max(ccf_rolling_mean$acf),ymin=0, ymax=max(ccf_rolling_mean$acf), col="red")+
-  annotate("text", label="Max ACF", x=ccf_rolling_mean$lag[which.max(ccf_rolling_mean$acf)],
+  annotate("text", label="Max CCF", x=ccf_rolling_mean$lag[which.max(ccf_rolling_mean$acf)],
            y=max(ccf_rolling_mean$acf)+0.01, col="Red") +
   ylim(-0.2,0.4) +
   labs(x="Lag (days)", y="CCF")+
-  ggtitle("CCF for workplace mobility and official cases in London")+
+  ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
   theme_light()
 
+# Confidence intervals are:
+qnorm(0.975)/sqrt(nrow(london_tibble_workplaces))
             
