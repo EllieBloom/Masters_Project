@@ -126,7 +126,7 @@ names(google_england_combined)[names(google_england_combined) == "Freq"] <- "reg
 # 
 # retail_regional
 
-region_list <- unique(region_mapping$Region)
+region_list <- sort(unique(region_mapping$Region))
 regional_summary <- NA
 date_range <-dput(unique(google_england_combined$date))
 
@@ -159,6 +159,8 @@ for (i in 1:length(region_list)){
 
 
 
+
+
 # Reformatting output of the loop
 regional_summary<-as.data.frame(regional_summary)
 colnames(regional_summary) <-c("date","region","retail_recreation","grocery_pharmacy","parks","transit_stations","workplaces","residential")
@@ -178,6 +180,9 @@ regional_summary <- regional_summary %>%
                      region==7~"SOUTH WEST" ,
                      region==8~"WEST MIDLANDS",
                      region==9~"YORKSHIRE AND THE HUMBER" ))
+
+
+regional_summary %>% filter(region=="LONDON", date=="2021-01-28")
 
 # Plotting to check
 
