@@ -84,7 +84,7 @@ mobility_tibble_av <- mobility_tibble %>%
 
 # Plot to check - raw
 
-labels_list_raw <- as_labeller( c("retail_recreation"="Retail and recreation", 
+labels_list <- as_labeller( c("retail_recreation"="Retail and recreation", 
                               "grocery_pharmacy"="Grocery and pharmacy", 
                               "parks"="Parks", 
                               "transit_stations"="Transit stations", 
@@ -109,7 +109,7 @@ plot_regions_mobility_raw <- ggplot(data=mobility_tibble_raw, aes(x=date,y=mobil
         axis.title.x=element_text(size=10),
         strip.background=element_rect(color="white", fill="white"),
         strip.text=element_text(color="black", size=10, face="bold"))+
-  scale_color_hue(labels = labels_list_raw) 
+  scale_color_hue(labels = labels_list) 
 
 plot_regions_mobility_raw 
 
@@ -200,8 +200,7 @@ plot_regions_cases <- ggplot(data=cases_tibble, aes(x=date,y=cases))+
         legend.title=element_blank(),
         axis.title.x=element_text(size=10),
         strip.background=element_rect(color="white", fill="white"),
-        strip.text=element_text(color="black", size=10, face="bold"))+
-  scale_color_hue(labels = labels_list) 
+        strip.text=element_text(color="black", size=10, face="bold"))
 
 plot_regions_cases 
 
@@ -247,8 +246,7 @@ plot_regions_prev <- ggplot(data=prev_tibble, aes(x=date,y=p*100))+
         legend.title=element_blank(),
         axis.title.x=element_text(size=10),
         strip.background=element_rect(color="white", fill="white"),
-        strip.text=element_text(color="black", size=10, face="bold"))+
-  scale_color_hue(labels = labels_list) 
+        strip.text=element_text(color="black", size=10, face="bold"))
 
 plot_regions_prev 
 
@@ -258,6 +256,195 @@ plot_regions_prev
 
 
 
-# CCF breakdown -----------------------------------------------------------
+# CCF breakdown - cases --------------------------------------------------------
+
+lag_max <- 200
+
+ccf_summary <- NA
+region_list
+mobility_list <- unique(mobility_tibble_av$type_mobility)
+
+# Loop
+
+for (i in 1:length(region_list)){
+  for (j in 1:length(mobility_list)){
+    mobility_temp <- mobility_tibble_av %>% filter(region==region_list[i], type_mobility==mobility_list[j])
+    cases_temp <- cases_tibble %>% filter(region==region_list[i])  
+    ccf <-ccf(rollmean(cases_temp$cases, k=7, fill=NA, align="center"), mobility_temp$mobility,
+              lag.max=lag_max, na.action=na.pass)                                                                                                                                                                                                  
+    
+    ccf_results <- as.data.frame(cbind(ccf$acf,ccf$lag))
+    ccf_results$region = region_list[i]
+    ccf_results$type_mobility = mobility_list[j]
+    ccf_summary <- rbind(ccf_summary,ccf_results)
+    
+  }
+}
+
+ccf_summary
+ccf_summary <- ccf_summary[-1,]
+colnames(ccf_summary)[1:2]<-c("acf","lag")
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+write.csv(ccf_summary, "CCF_mobility_cases_data.csv")
+
+# Summary of mins and maxes
+
+ccf_lags_summary <- ccf_summary %>% group_by(region, type_mobility) %>% summarise(max_acf=max(abs(acf)),
+                                                              max_lag=lag[which.max(abs(acf))])
 
 
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+write.csv(ccf_lags_summary, "CCF_mobility_cases_summary.csv")
+
+
+
+# Plot
+
+ggplot(data=ccf_summary, aes(x=lag, color=type_mobility))+
+  geom_line(aes(y=acf)) +
+  facet_wrap(.~region)+
+  geom_hline(yintercept=0, color="dark grey") +
+  geom_hline(yintercept = qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # upper CI bound (just uses quantiles)
+  geom_hline(yintercept = -qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # lower CI bound (just uses quantiles)
+  xlim(0,lag_max) +
+  labs(x="Lag (days)", y="CCF")+
+  ggtitle("Cross correlation function (CCF) for mobility and official covid-19 cases in England")+
+  scale_color_hue(labels = labels_list_av) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+
+
+mobility_labels <- c("Grocery and pharmacy", "Parks", "Residential", "Retail and recreation", 
+                     "Transit stations", "Workplaces")
+
+names(mobility_labels) <- c("grocery_pharmacy_av", "parks_av", "residential_av", "retail_recreation_av", 
+                            "transit_stations_av", "workplaces_av")
+
+
+regional_summary <- regional_summary %>% 
+  mutate(region = 
+           case_when(region==1~"EAST" ,
+                     region==2~"EAST MIDLANDS" ,
+                     region==3~"LONDON" ,
+                     region==4~"NORTH EAST",
+                     region==5~"NORTH WEST",
+                     region==6~"SOUTH EAST" ,
+                     region==7~"SOUTH WEST" ,
+                     region==8~"WEST MIDLANDS",
+                     region==9~"YORKSHIRE AND THE HUMBER" ))
+
+
+CCF_plot_cases<- ccf_summary %>% mutate(type_mobility =
+                         case_when(type_mobility=="grocery_pharmacy_av"~"Grocery and pharmacy",
+                                   type_mobility=="parks_av"~"Parks",
+                                   type_mobility=="residential_av"~"Residential",
+                                   type_mobility=="retail_recreation_av"~"Retail and recreation",
+                                   type_mobility=="transit_stations_av"~"Transit stations",
+                                   type_mobility=="workplaces_av"~"Workplaces"
+                                   )) %>%
+ggplot(aes(x=lag, color=region))+
+  geom_line(aes(y=acf)) +
+  facet_wrap(type_mobility~.)+
+  geom_hline(yintercept=0, color="dark grey") +
+  geom_hline(yintercept = qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # upper CI bound (just uses quantiles)
+  geom_hline(yintercept = -qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # lower CI bound (just uses quantiles)
+  xlim(0,lag_max) +
+  labs(x="Lag (Days)", y="CCF (with new cases)")+
+  ggtitle("Cross correlation function (CCF) for mobility and official covid-19 cases in England")+
+  scale_color_hue(labels = region_list) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+CCF_plot_cases
+
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+ggsave("CCF_plot_cases.pdf",CCF_plot_cases)
+
+
+# Confidence intervals look very small?
+# Could also try doing this with sqrt cases or log cases?
+
+
+# CCF breakdown - REACT prevalence ---------------------------------------------
+
+ccf_results <- NA
+ccf_summary_prev <- NA
+region_list
+mobility_list <- unique(mobility_tibble_av$type_mobility)
+
+# Loop
+
+for (i in 1:length(region_list)){
+  for (j in 1:length(mobility_list)){
+    mobility_temp <- mobility_tibble_av %>% filter(region==region_list[i], type_mobility==mobility_list[j])
+    prev_temp <- prev_tibble %>% filter(region==region_list[i])  
+    ccf <-ccf(prev_temp$p, mobility_temp$mobility,
+              lag.max=lag_max, na.action=na.pass)                                                                                                                                                                                                  
+    
+    ccf_results <- as.data.frame(cbind(ccf$acf,ccf$lag))
+    ccf_results$region = region_list[i]
+    ccf_results$type_mobility = mobility_list[j]
+    ccf_summary_prev <- rbind(ccf_summary_prev,ccf_results)
+    
+  }
+}
+
+ccf_summary_prev
+ccf_summary_prev <- ccf_summary_prev[-1,]
+colnames(ccf_summary_prev)[1:2]<-c("acf","lag")
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+write.csv(ccf_summary_prev, "CCF_mobility_prev_data.csv")
+
+
+# Summary of mins and maxes
+
+ccf_prev_lags_summary <- ccf_summary_prev %>% group_by(region, type_mobility) %>% summarise(max_acf=max(abs(acf)),
+                                                                                  max_lag=lag[which.max(abs(acf))])
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+write.csv(ccf_prev_lags_summary , "CCF_mobility_prev_summary.csv")
+
+# Plot
+
+CCF_plot_prev <- ccf_summary_prev %>% mutate(type_mobility =
+                         case_when(type_mobility=="grocery_pharmacy_av"~"Grocery and pharmacy",
+                                   type_mobility=="parks_av"~"Parks",
+                                   type_mobility=="residential_av"~"Residential",
+                                   type_mobility=="retail_recreation_av"~"Retail and recreation",
+                                   type_mobility=="transit_stations_av"~"Transit stations",
+                                   type_mobility=="workplaces_av"~"Workplaces"
+                         )) %>%
+  ggplot(aes(x=lag, color=region))+
+  geom_line(aes(y=acf)) +
+  facet_wrap(type_mobility~.)+
+  geom_hline(yintercept=0, color="dark grey") +
+  geom_hline(yintercept = qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # upper CI bound (just uses quantiles)
+  geom_hline(yintercept = -qnorm(0.975)/sqrt(length(unique(mobility_tibble$date))), linetype="dashed", color="dark grey")+ # lower CI bound (just uses quantiles)
+  xlim(0,lag_max) +
+  labs(x="Lag (Days)", y="CCF (with prevalence)")+
+  ggtitle("Cross correlation function (CCF) for mobility and REACT-1 prevalence in England")+
+  scale_color_hue(labels = region_list) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+
+CCF_plot_prev
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+ggsave("CCF_plot_prev.pdf",CCF_plot_prev)
