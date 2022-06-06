@@ -14,6 +14,7 @@ library(tidyverse)
 library(fpp3)
 library(slider) #for the moving averages
 library(reshape) # for melt
+library(gtsummary) # for tbl_regression
 
 # Useful dates ------------------------------------------------------------
 
@@ -34,11 +35,11 @@ lockdown_3_start <- as.Date("2021-01-06","%Y-%m-%d")
 lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
 
 
+# Data setup ---------------------------------------------------------------
 
-# Loading and prepping data -----------------------------------------------
+google_overall <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs/google_regional_long.csv")
 
-
-google_overall <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Data/Google/google_overall.csv")
+str(google_overall)
 
 # Converting dates from string format to date
 
@@ -46,69 +47,104 @@ str(google_overall$date) # Dates are currently stored as characters
 google_overall$date <- as.Date(google_overall$date,format="%Y-%m-%d")
 str(google_overall$date)
 
+# ref: https://www.gov.uk/bank-holidays
 google_overall$bank_holiday <- ifelse(google_overall$date %in% bank_holidays,1,0)
 google_overall$bank_holiday <- as.factor(google_overall$bank_holiday)
 
+google_overall <- google_overall[,-1]
 
-# Adding bank holidays as a field - ref: https://www.gov.uk/bank-holidays
+# Changing the order
 
-england_sub_region_1 <- c("Bath and North East Somerset","Bedford", "Blackburn with Darwen",
-                          "Blackpool", "Borough of Halton","Bracknell Forest","Brighton and Hove", 
-                          "Bristol City","Buckinghamshire","Cambridgeshire","Central Bedfordshire",
-                          "Cheshire East","Cheshire West and Chester","Cornwall","County Durham",
-                          "Cumbria", "Darlington","Derby","Derbyshire","Devon", "Dorset",
-                          "East Riding of Yorkshire", "East Sussex", "Essex","Gloucestershire",
-                          "Greater London","Greater Manchester","Hampshire" , "Hartlepool",
-                          "Herefordshire", "Isle of Wight", "Kent", "Kingston upon Hull",
-                          "Lancashire", "Leicester","Leicestershire", "Lincolnshire","Luton",
-                          "Medway", "Merseyside", "Middlesbrough","Milton Keynes", "Norfolk",
-                          "North East Lincolnshire", "North Lincolnshire", "North Somerset", 
-                          "North Yorkshire", "Northamptonshire", "Northumberland", "Nottingham",
-                          "Nottinghamshire", "Oxfordshire", "Peterborough", "Plymouth","Portsmouth",
-                          "Reading", "Redcar and Cleveland", "Rutland", "Shropshire", "Slough",
-                          "Somerset", "South Gloucestershire", "South Yorkshire", "Southampton",
-                          "Southend-on-Sea", "Staffordshire", "Stockton-on-Tees", "Stoke-on-Trent",
-                          "Suffolk", "Surrey", "Swindon", "Thurrock", "Torbay","Tyne and Wear",
-                          "Warrington", "Warwickshire", "West Berkshire", "West Midlands",
-                          "West Sussex", "West Yorkshire", "Wiltshire", "Windsor and Maidenhead",
-                          "Wokingham", "Worcestershire","York")
+google_overall <- google_overall[
+  order(google_overall$region, google_overall$type_mobility, google_overall$date),
+]
+
+google_overall
 
 
-google_england <- google_overall %>% filter(sub_region_1 %in% england_sub_region_1) %>% filter(sub_region_2 == "") # Blank sub_region_2 means at the overall level only
+# Creating tsibble
 
-
-
-
-# Converting to tstibble (time series tibble) -----------------------------
-
-# England regional tstibble
-england_tibble <- google_england %>%
-  select(-c("sub_region_2","metro_area","country_region","census_fips_code","place_id","X","iso_3166_2_code","country_region_code")) %>%
-  as_tsibble(key='sub_region_1',index=date)
-
-
-google_england_long <- melt(google_england[,c("retail_and_recreation_percent_change_from_baseline", 
-                                          "grocery_and_pharmacy_percent_change_from_baseline", "parks_percent_change_from_baseline", 
-                                          "transit_stations_percent_change_from_baseline", "workplaces_percent_change_from_baseline", 
-                                          "residential_percent_change_from_baseline","date","sub_region_1","bank_holiday")], id.vars=c("date","sub_region_1","bank_holiday"))
-
-
-# Renaming columns
-colnames(google_england_long) <- c("date","region","bank_holiday","type_mobility","mobility")
-
-# Changing the mobility type fileds to be shorter
-
-google_england_long <- google_england_long %>% mutate(type_mobility=recode(type_mobility,
-                                              "retail_and_recreation_percent_change_from_baseline"="workplace", 
-                                              "grocery_and_pharmacy_percent_change_from_baseline"="grocery_pharmacy",
-                                              "parks_percent_change_from_baseline"="parks", 
-                                              "transit_stations_percent_change_from_baseline"="transit_stations",
-                                              "workplaces_percent_change_from_baseline"="workplaces", 
-                                              "residential_percent_change_from_baseline"="residential"))
-# Data is now tidier and easier to filter
-
-england_tibble <- google_england_long %>%
-  as_tsibble(key=c(region,type_mobility),index=date)
+england_tibble <- google_overall %>%
+  as_tsibble(key=c(region,type_mobility),index=date, regular=TRUE, validate=FALSE) # Shouldn't have to do validate = false
+ 
+ 
+# 
+# 
+# # Old setup:
+# # Loading and prepping data -----------------------------------------------
+# 
+# 
+# google_overall <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Data/Google/google_overall.csv")
+# 
+# # Converting dates from string format to date
+# 
+# str(google_overall$date) # Dates are currently stored as characters
+# google_overall$date <- as.Date(google_overall$date,format="%Y-%m-%d")
+# str(google_overall$date)
+# 
+# google_overall$bank_holiday <- ifelse(google_overall$date %in% bank_holidays,1,0)
+# google_overall$bank_holiday <- as.factor(google_overall$bank_holiday)
+# 
+# 
+# # Adding bank holidays as a field - ref: https://www.gov.uk/bank-holidays
+# 
+# england_sub_region_1 <- c("Bath and North East Somerset","Bedford", "Blackburn with Darwen",
+#                           "Blackpool", "Borough of Halton","Bracknell Forest","Brighton and Hove", 
+#                           "Bristol City","Buckinghamshire","Cambridgeshire","Central Bedfordshire",
+#                           "Cheshire East","Cheshire West and Chester","Cornwall","County Durham",
+#                           "Cumbria", "Darlington","Derby","Derbyshire","Devon", "Dorset",
+#                           "East Riding of Yorkshire", "East Sussex", "Essex","Gloucestershire",
+#                           "Greater London","Greater Manchester","Hampshire" , "Hartlepool",
+#                           "Herefordshire", "Isle of Wight", "Kent", "Kingston upon Hull",
+#                           "Lancashire", "Leicester","Leicestershire", "Lincolnshire","Luton",
+#                           "Medway", "Merseyside", "Middlesbrough","Milton Keynes", "Norfolk",
+#                           "North East Lincolnshire", "North Lincolnshire", "North Somerset", 
+#                           "North Yorkshire", "Northamptonshire", "Northumberland", "Nottingham",
+#                           "Nottinghamshire", "Oxfordshire", "Peterborough", "Plymouth","Portsmouth",
+#                           "Reading", "Redcar and Cleveland", "Rutland", "Shropshire", "Slough",
+#                           "Somerset", "South Gloucestershire", "South Yorkshire", "Southampton",
+#                           "Southend-on-Sea", "Staffordshire", "Stockton-on-Tees", "Stoke-on-Trent",
+#                           "Suffolk", "Surrey", "Swindon", "Thurrock", "Torbay","Tyne and Wear",
+#                           "Warrington", "Warwickshire", "West Berkshire", "West Midlands",
+#                           "West Sussex", "West Yorkshire", "Wiltshire", "Windsor and Maidenhead",
+#                           "Wokingham", "Worcestershire","York")
+# 
+# 
+# google_england <- google_overall %>% filter(sub_region_1 %in% england_sub_region_1) %>% filter(sub_region_2 == "") # Blank sub_region_2 means at the overall level only
+# 
+# 
+# 
+# 
+# # Converting to tstibble (time series tibble) -----------------------------
+# 
+# # England regional tstibble
+# england_tibble <- google_england %>%
+#   select(-c("sub_region_2","metro_area","country_region","census_fips_code","place_id","X","iso_3166_2_code","country_region_code")) %>%
+#   as_tsibble(key='sub_region_1',index=date)
+# 
+# 
+# google_england_long <- melt(google_england[,c("retail_and_recreation_percent_change_from_baseline", 
+#                                           "grocery_and_pharmacy_percent_change_from_baseline", "parks_percent_change_from_baseline", 
+#                                           "transit_stations_percent_change_from_baseline", "workplaces_percent_change_from_baseline", 
+#                                           "residential_percent_change_from_baseline","date","sub_region_1","bank_holiday")], id.vars=c("date","sub_region_1","bank_holiday"))
+# 
+# 
+# # Renaming columns
+# colnames(google_england_long) <- c("date","region","bank_holiday","type_mobility","mobility")
+# 
+# # Changing the mobility type fileds to be shorter
+# 
+# google_england_long <- google_england_long %>% mutate(type_mobility=recode(type_mobility,
+#                                               "retail_and_recreation_percent_change_from_baseline"="workplace", 
+#                                               "grocery_and_pharmacy_percent_change_from_baseline"="grocery_pharmacy",
+#                                               "parks_percent_change_from_baseline"="parks", 
+#                                               "transit_stations_percent_change_from_baseline"="transit_stations",
+#                                               "workplaces_percent_change_from_baseline"="workplaces", 
+#                                               "residential_percent_change_from_baseline"="residential"))
+# # Data is now tidier and easier to filter
+# 
+# england_tibble <- google_england_long %>%
+#   as_tsibble(key=c(region,type_mobility),index=date)
 
 
 
@@ -117,7 +153,7 @@ england_tibble <- google_england_long %>%
 # workplace and London
 
 england_tibble %>%
-  filter(region=="Greater London",type_mobility=="workplaces") %>%
+  filter(region=="LONDON",type_mobility=="workplaces") %>%
   autoplot(mobility) +
     labs(title = "Workplace mobility",
          subtitle = "London",
@@ -130,7 +166,7 @@ england_tibble %>%
 # London workplace decomposition ----------------------------------------------------
 
 dcmp_london <- england_tibble %>%
-  filter(region=="Greater London",type_mobility=="workplaces") %>%
+  filter(region=="LONDON",type_mobility=="workplaces") %>%
   model(stl = STL(mobility))
 
 components(dcmp_london)
@@ -160,7 +196,7 @@ components(dcmp_london) %>%
 # # https://coronavirus.data.gov.uk/details/download
 
 london_tibble <- england_tibble %>%
-  filter(region=="Greater London")
+  filter(region=="LONDON")
 
 #Adding in London covid cases
 
@@ -266,7 +302,8 @@ augment(fit_london_lockdown1_tslm) %>%
   labs(y = "Fitted", x = "Actual values",
        title = "London mobility lockdown 1 - actual mobility vs fitted mobility") +
   geom_abline(intercept = 0, slope = 1) +
-  guides(colour = guide_legend(title = "Weekday"))
+  guides(colour = guide_legend(title = "Weekday"))+
+  theme_light()
 
 # Note the 'outliers' here are bank holidays, which are accounted for in the model - trying to add this as the shape
 # Could also do this by having an 'intervention' variable to signify when there are and aren't lockdown
@@ -508,6 +545,7 @@ ggplot(data=ccf_results, aes(x=lag))+
   ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
   theme_light()
 
-# Confidence intervals are:
-qnorm(0.975)/sqrt(nrow(london_tibble_workplaces))
+# Confidence intervals using normal quantiles are:
+c(-qnorm(0.975)/sqrt(nrow(london_tibble_workplaces)),qnorm(0.975)/sqrt(nrow(london_tibble_workplaces)))
             
+                     
