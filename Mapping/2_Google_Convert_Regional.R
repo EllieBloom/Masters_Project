@@ -182,11 +182,32 @@ regional_summary <- regional_summary %>%
                      region==9~"YORKSHIRE AND THE HUMBER" ))
 
 
-regional_summary %>% filter(region=="LONDON", date=="2021-01-28")
+
+# Rolling averages needed too, need different for each region
+
+region_list <- dput(unique(regional_summary$region))
+df_combined <- NA
+
+# Loop to add rolling averages
+for (i in 1:length(region_list)){
+  df_region <- regional_summary %>% filter(region==region_list[i])
+  df_region <- df_region %>%
+    mutate(retail_recreation_av = rollmean(retail_recreation, k=7, fill=NA, align="center") ,
+           grocery_pharmacy_av = rollmean(grocery_pharmacy, k=7, fill=NA, align="center") ,
+           parks_av = rollmean(parks, k=7, fill=NA, align="center"),
+           transit_stations_av = rollmean(transit_stations, k=7, fill=NA, align="center"),
+           workplaces_av = rollmean(workplaces, k=7, fill=NA, align="center"),
+           residential_av = rollmean(residential, k=7, fill=NA, align="center")) 
+  
+  df_combined <- rbind(df_combined, df_region)
+}
+
+df_combined <- df_combined[-1,]
+regional_summary <- df_combined
 
 # Plotting to check
 
-ggplot(data=regional_summary, aes(x=date,y=parks,col=region))+
+ggplot(data=regional_summary, aes(x=date,y=residential_av,col=region))+
   geom_line()
 
 
@@ -199,7 +220,9 @@ write.csv(regional_summary,"google_regional_wide.csv")
 # Creating a long version to plot all combinations
 
 regional_summary_long <- melt(regional_summary[,c("date", "region", "retail_recreation", "grocery_pharmacy", 
-                                                  "parks", "transit_stations", "workplaces", "residential")],
+                                                  "parks", "transit_stations", "workplaces", "residential", "retail_recreation_av", 
+                                                  "grocery_pharmacy_av", "parks_av", "transit_stations_av", "workplaces_av", 
+                                                  "residential_av")],
                                                 id.vars = c("date","region"))
 
 colnames(regional_summary_long) <- c("date","region","type_mobility","mobility")
@@ -208,38 +231,38 @@ colnames(regional_summary_long) <- c("date","region","type_mobility","mobility")
 # Plotting faceted version of the long data
 
 
-labels_list <- as_labeller( c("retail_recreation"="Retail and recreation", 
-                              "grocery_pharmacy"="Grocery and pharmacy", 
-                              "parks"="Parks", 
-                              "transit_stations"="Transit stations", 
-                              "workplaces"="Workplaces", 
-                              "residential"="Residential"))
-
-
-plot_regions_mobility <-ggplot(data=regional_summary_long, aes(x=date,y=mobility,col=factor(type_mobility)))+
-                        geom_line() +
-                        facet_wrap(.~region, scales = "free") +
-                        scale_x_date(breaks = function(x) seq.Date(from = min(x), 
-                                                                   to = max(x), 
-                                                                   by = "1 year"),
-                                     minor_breaks = function(x) seq.Date(from = min(x), 
-                                                                         to = max(x), 
-                                                                         by = "6 months"),
-                                     date_labels="%Y") +
-                        theme_light() +
-                        labs(x="Date",y="Mobility change from baseline (%)",
-                             title = "Google mobility mapped to English regions")+
-                        theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
-                              legend.title=element_blank(),
-                              axis.title.x=element_text(size=10),
-                              strip.background=element_rect(color="white", fill="white"),
-                              strip.text=element_text(color="black", size=10, face="bold"))+
-                        scale_color_hue(labels = labels_list) 
-
-plot_regions_mobility 
-
-setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs")
-ggsave("Google_regions_wrap.pdf", plot=plot_regions_mobility)
+# labels_list <- as_labeller( c("retail_recreation"="Retail and recreation", 
+#                               "grocery_pharmacy"="Grocery and pharmacy", 
+#                               "parks"="Parks", 
+#                               "transit_stations"="Transit stations", 
+#                               "workplaces"="Workplaces", 
+#                               "residential"="Residential"))
+# 
+# 
+# plot_regions_mobility <-ggplot(data=regional_summary_long, aes(x=date,y=mobility,col=factor(type_mobility)))+
+#                         geom_line() +
+#                         facet_wrap(.~region, scales = "free") +
+#                         scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+#                                                                    to = max(x), 
+#                                                                    by = "1 year"),
+#                                      minor_breaks = function(x) seq.Date(from = min(x), 
+#                                                                          to = max(x), 
+#                                                                          by = "6 months"),
+#                                      date_labels="%Y") +
+#                         theme_light() +
+#                         labs(x="Date",y="Mobility change from baseline (%)",
+#                              title = "Google mobility mapped to English regions")+
+#                         theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+#                               legend.title=element_blank(),
+#                               axis.title.x=element_text(size=10),
+#                               strip.background=element_rect(color="white", fill="white"),
+#                               strip.text=element_text(color="black", size=10, face="bold"))+
+#                         scale_color_hue(labels = labels_list) 
+# 
+# plot_regions_mobility 
+# 
+# setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs")
+# ggsave("Google_regions_wrap.pdf", plot=plot_regions_mobility)
   
 # Saving the wide dataset
 
