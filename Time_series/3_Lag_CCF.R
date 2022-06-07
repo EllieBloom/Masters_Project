@@ -35,14 +35,6 @@ lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
 
 # Data preparation --------------------------------------------------------
 
-# Creating 5 datasets:
-# 1. mobility_tibble -> includes both raw and moving average mobility
-# 2. mobility_tibble_raw -> only includes raw mobility
-# 3. mobility_tibble_av -> only includes 7-day centered rolling average mobility
-# 4. cases_tibble -> official covid-19 cases in England by specimen date
-# 5. prev_tibble -> REACT-1 B-Spline daily prevalence by region
-
-
 
 ## Loading mobility data --------------------------------------------------------
 
@@ -251,9 +243,21 @@ plot_regions_prev <- ggplot(data=prev_tibble, aes(x=date,y=p*100))+
 plot_regions_prev 
 
 
+# Summary and saving 5 datasets -------------------------------------------
 
+# Creating 5 datasets:
+# 1. mobility_tibble -> includes both raw and moving average mobility
+# 2. mobility_tibble_raw -> only includes raw mobility
+# 3. mobility_tibble_av -> only includes 7-day centered rolling average mobility
+# 4. cases_tibble -> official covid-19 cases in England by specimen date
+# 5. prev_tibble -> REACT-1 B-Spline daily prevalence by region
 
-
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+saveRDS(mobility_tibble,"mobility_tibble.rds")
+saveRDS(mobility_tibble_raw,"mobility_tibble_raw.rds")
+saveRDS(mobility_tibble_av,"mobility_tibble_av.rds")
+saveRDS(cases_tibble,"cases_tibble.rds")
+saveRDS(prev_tibble,"prev_tibble.rds")
 
 
 # CCF breakdown - cases --------------------------------------------------------
@@ -371,9 +375,38 @@ CCF_plot_cases
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
 ggsave("CCF_plot_cases.pdf",CCF_plot_cases)
 
-
 # Confidence intervals look very small?
 # Could also try doing this with sqrt cases or log cases?
+
+
+# Plot of summary
+
+lag_plot_cases <- ccf_lags_summary %>% mutate(type_mobility =
+                                                    case_when(type_mobility=="grocery_pharmacy_av"~"Grocery and pharmacy",
+                                                              type_mobility=="parks_av"~"Parks",
+                                                              type_mobility=="residential_av"~"Residential",
+                                                              type_mobility=="retail_recreation_av"~"Retail and recreation",
+                                                              type_mobility=="transit_stations_av"~"Transit stations",
+                                                              type_mobility=="workplaces_av"~"Workplaces"
+                                                    )) %>%
+  ggplot(aes(x=type_mobility, y=max_lag, fill=region))+
+  geom_bar(stat="identity",position="dodge") +
+  scale_color_hue(labels = region_list) +
+  theme_light() +
+  ggtitle("Lags which maximise CCF between mobility and official cases")+
+  labs(x="", y="Lag") +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+lag_plot_cases 
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+ggsave("lag_plot_cases.pdf",lag_plot_cases)
+
+# Lags are too long to be useful!! Could limit lag-max to e.g. 2 months
+
 
 
 # CCF breakdown - REACT prevalence ---------------------------------------------
@@ -411,10 +444,12 @@ write.csv(ccf_summary_prev, "CCF_mobility_prev_data.csv")
 # Summary of mins and maxes
 
 ccf_prev_lags_summary <- ccf_summary_prev %>% group_by(region, type_mobility) %>% summarise(max_acf=max(abs(acf)),
-                                                                                  max_lag=lag[which.max(abs(acf))])
+                                                                                max_lag=lag[which.max(abs(acf))])
 
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
 write.csv(ccf_prev_lags_summary , "CCF_mobility_prev_summary.csv")
+
+
 
 # Plot
 
@@ -448,3 +483,30 @@ CCF_plot_prev
 
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
 ggsave("CCF_plot_prev.pdf",CCF_plot_prev)
+
+
+# Plot of summary
+
+lag_plot_prev <- ccf_prev_lags_summary %>% mutate(type_mobility =
+                                               case_when(type_mobility=="grocery_pharmacy_av"~"Grocery and pharmacy",
+                                                         type_mobility=="parks_av"~"Parks",
+                                                         type_mobility=="residential_av"~"Residential",
+                                                         type_mobility=="retail_recreation_av"~"Retail and recreation",
+                                                         type_mobility=="transit_stations_av"~"Transit stations",
+                                                         type_mobility=="workplaces_av"~"Workplaces"
+                                               )) %>%
+ggplot(aes(x=type_mobility, y=max_lag, fill=region))+
+  geom_bar(stat="identity",position="dodge") +
+  scale_color_hue(labels = region_list) +
+  theme_light() +
+  ggtitle("Lags which maximise CCF between mobility and REACT prevalence")+
+  labs(x="", y="Lag") +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+lag_plot_prev 
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series/Outputs")
+ggsave("lag_plot_prev.pdf",lag_plot_prev )
