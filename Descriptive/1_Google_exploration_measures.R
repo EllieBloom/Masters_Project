@@ -8,6 +8,7 @@
 # Setup
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
+library(reshape)
 
 # Loading Google data
 
@@ -252,6 +253,45 @@ plot_baseline_lockdowns <- plot_baseline + annotate("rect", xmin=as.Date("2020-0
 plot_baseline_lockdowns
 ggsave("Google_baseline_lockdowns.pdf",plot=plot_baseline_lockdowns, device="pdf")
 
+
+
+## Just workplace measure --------------------------------------------------
+
+google_gb_long_workplace <- google_gb_long[google_gb_long$variable=="workplaces_rolling_av",]
+
+plot_baseline_workplace <- ggplot(data=google_gb_long_workplace, aes(x=date,y=value)) +
+  geom_line(color="navy blue") +
+  xlab("") +
+  ylab ("7-day rolling average change from baseline movement (%)") +
+  ggtitle("Google workplace mobility in the UK") +
+  labs(color = "") + # This means that the title for the legent is blank
+  scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+                                             to = max(x), 
+                                             by = "3 months"),
+               minor_breaks = function(x) seq.Date(from = min(x), 
+                                                   to = max(x), 
+                                                   by = "1 months"),
+               date_labels="%b %Y") +
+  scale_y_continuous(c(-75,25))
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom") 
+
+plot_baseline_workplace
+
+plot_baseline_lockdowns_workplace <- plot_baseline_workplace + annotate("rect", xmin=as.Date("2020-03-26","%Y-%m-%d"), xmax = as.Date("2020-06-15","%Y-%m-%d"), ymin=-80, ymax=5, alpha=0.2) +
+  annotate("rect", xmin=as.Date("2020-11-05","%Y-%m-%d"), xmax = as.Date("2020-12-02","%Y-%m-%d"), ymin=-80, ymax=5, alpha=0.2) +
+  annotate("rect", xmin=as.Date("2021-01-06","%Y-%m-%d"), xmax = as.Date("2021-04-12","%Y-%m-%d"), ymin=-80, ymax=5, alpha=0.2) +
+  annotate("rect", xmin=as.Date("2021-12-8","%Y-%m-%d"), xmax = as.Date("2022-01-27","%Y-%m-%d"), ymin=-80, ymax=5, alpha=0.2) +
+  annotate("text",x=as.Date("2020-03-26","%Y-%m-%d"), y=10, label="1st lockdown", hjust=0, color="gray23") +
+  annotate("text",x=as.Date("2020-12-20","%Y-%m-%d"), y=10, label="2nd lockdown",  hjust=1, color="gray23") +
+  annotate("text",x=as.Date("2021-02-15","%Y-%m-%d"), y=10, label="3rd lockdown",  hjust=0.5, color="gray23") +
+  annotate("text",x=as.Date("2022-01-05","%Y-%m-%d"), y=10, label="Plan B measures",  hjust=0.5, color="gray23")
+
+plot_baseline_lockdowns_workplace
+
+
+
+
 #Combined google measure, as per imperial covid report 26 ------------------------
 
 colnames(google_gb)
@@ -431,3 +471,83 @@ google_new_long_excl_parks <- melt(google_new[,c("retail_and_recreation_rolling_
 
 
 
+
+# Plotting overall mobility by reigon -------------------------------------
+
+head(google_england)
+
+google_england$month <- months(google_england$date)
+google_england$year <- format(google_england$date, format="%y")
+
+
+mean_rows <-aggregate(workplaces_percent_change_from_baseline ~ month + year,google_england,mean)[,1:2]
+
+
+means <- NA
+monthly_means <-NA
+
+
+for (i in 1:length(england_sub_region_1)){
+  # Creating new subdataset for each region
+  google_region <- google_england %>% filter(sub_region_1==england_sub_region_1[i])
+  means <- aggregate(workplaces_percent_change_from_baseline ~ month + year,google_region,mean)
+  monthly_means <- cbind(monthly_means,means[,3])
+}
+
+monthly_means <- monthly_means[,-1]
+colnames(monthly_means) <- england_sub_region_1
+monthly_means <- cbind(mean_rows,monthly_means)
+
+# Combined month and date
+library(zoo)
+monthly_means$date <- as.yearmon(paste(monthly_means$year, monthly_means$month), "%y %B")
+
+
+
+
+# Monthly boxplot
+
+monthly_means$date <- as.Date(monthly_means$date, format="%y %B")
+
+# Make long data
+monthly_means_long <- as.data.frame(melt(monthly_means[,c("Bath and North East Somerset", "Bedford", 
+                                                        "Blackburn with Darwen", "Blackpool", "Borough of Halton", "Bracknell Forest", 
+                                                        "Brighton and Hove", "Bristol City", "Buckinghamshire", "Cambridgeshire", 
+                                                        "Central Bedfordshire", "Cheshire East", "Cheshire West and Chester", 
+                                                        "Cornwall", "County Durham", "Cumbria", "Darlington", "Derby", 
+                                                        "Derbyshire", "Devon", "Dorset", "East Riding of Yorkshire", 
+                                                        "East Sussex", "Essex", "Gloucestershire", "Greater London", 
+                                                        "Greater Manchester", "Hampshire", "Hartlepool", "Herefordshire", 
+                                                        "Isle of Wight", "Kent", "Kingston upon Hull", "Lancashire", 
+                                                        "Leicester", "Leicestershire", "Lincolnshire", "Luton", "Medway", 
+                                                        "Merseyside", "Middlesbrough", "Milton Keynes", "Norfolk", "North East Lincolnshire", 
+                                                        "North Lincolnshire", "North Somerset", "North Yorkshire", "Northamptonshire", 
+                                                        "Northumberland", "Nottingham", "Nottinghamshire", "Oxfordshire", 
+                                                        "Peterborough", "Plymouth", "Portsmouth", "Reading", "Redcar and Cleveland", 
+                                                        "Rutland", "Shropshire", "Slough", "Somerset", "South Gloucestershire", 
+                                                        "South Yorkshire", "Southampton", "Southend-on-Sea", "Staffordshire", 
+                                                        "Stockton-on-Tees", "Stoke-on-Trent", "Suffolk", "Surrey", "Swindon", 
+                                                        "Thurrock", "Torbay", "Tyne and Wear", "Warrington", "Warwickshire", 
+                                                        "West Berkshire", "West Midlands", "West Sussex", "West Yorkshire", 
+                                                        "Wiltshire", "Windsor and Maidenhead", "Wokingham", "Worcestershire", 
+                                                        "York", "date")],id.vars=c("date")))
+
+
+# Create plot
+
+date_labels=c("" ,"March 2020", "" ,"", "June 2020" ,"" ,"","Sept 2020" ,""
+,"", "Dec 2020", "", "" ,"March 2021", "" ,"", "June 2021", "", "", "Sept 2020", "" ,"", 
+"Dec 2021","", "", "March 2022", "","")
+
+boxplot_monthly <- ggplot(data=monthly_means_long, aes(x=as.factor(date),y=value))+
+                  geom_boxplot(outlier.shape=4, color="royal blue")+
+                  xlab("Date")+
+                  ylab("Percentage change in workplace mobility from baseline")+
+                  ggtitle("Boxplot of mean workplace mobility for each region in England")+
+                  scale_x_discrete(labels=date_labels)+
+                  theme_light()+
+                  theme(plot.title = element_text(hjust = 0.5))
+
+boxplot_monthly  
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Descriptive/Ouputs/Google")
+ggsave("Google_regional_wrokplace_boxplot.pdf", plot=boxplot_monthly)

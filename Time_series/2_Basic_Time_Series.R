@@ -521,7 +521,7 @@ max(ccf_rolling_mean$acf)
 # Max ACF is 0.318
 which.max(ccf_rolling_mean$acf)
 
-ccf_rolling_mean$lag[which.max(ccf_rolling_mean$acf)] # Max ACF at -60
+ccf_rolling_mean$lag[which.max(ccf_rolling_mean$acf)] # Max ACF at -61
 
 
 # Try and produce a plot that looks a bit different -> first run without the plot:

@@ -12,6 +12,7 @@ library(fpp3)
 library(slider) #for the moving averages
 library(reshape) # for melt
 library(gtsummary) # for tbl_regression
+library(zoo) # for rollmean
 
 # Useful dates ------------------------------------------------------------
 
@@ -378,6 +379,11 @@ ggsave("CCF_plot_cases.pdf",CCF_plot_cases)
 # Confidence intervals look very small?
 # Could also try doing this with sqrt cases or log cases?
 
+# Looking at just London:
+ccf_summary %>% filter(region=="LONDON") %>%
+  ggplot(aes(x=-lag,y=acf, color)) +
+  geom_line()+
+  facet_wrap(.~type_mobility)
 
 # Plot of summary
 

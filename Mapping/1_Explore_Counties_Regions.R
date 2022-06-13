@@ -4,6 +4,8 @@
 
 # Script to map Google counties (metropolitan and non-metrpolitan counties) to the REACT regions used for daily spline prevalence
 # Mapping to region, and to the population so that the Google mobility at county can be aggregated up to regional level to match REACT
+# Note: uses mid-2020 populations from ONS, found here:
+# https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland
 
 
 # Setup:
@@ -113,8 +115,8 @@ merged_data$'All ages'[merged_data$Name==mismatches[12]]<- populations$'All ages
 regions_mapping <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Data/Population/region_mapping.csv")
 regions_mapping
 
-merged_data_final <- merge(merged_data_final, regions_mapping[,c("Name","Region")], by="Name", all.x=TRUE)
-nrow(merged_data_final_final)
+merged_data_final <- merge(merged_data, regions_mapping[,c("Name","Region")], by="Name", all.x=TRUE)
+nrow(merged_data_final)
 
 # Adding in missing regions manually
 merged_data_final$Region[merged_data_final$Name==mismatches[1]] <- regions_mapping$Region[regions_mapping$Name=="Halton"]
@@ -143,6 +145,12 @@ merged_data_final <- merged_data_final %>%
                                        Region=="SOUTH WEST" ~ "SW",
                                        Region=="WEST MIDLANDS" ~ "WM",
                                        Region=="YORKSHIRE AND THE HUMBER" ~"YH"))
+
+# Renaming the population column
+
+colnames(merged_data_final) <- c("Name", "Geography", "Population", "Region", "region_code")
+
+
 # Export csv 
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs")  
 write.csv(merged_data_final,"region_county_popultion_lookup.csv")

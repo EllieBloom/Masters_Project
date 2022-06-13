@@ -1,0 +1,55 @@
+"","region","type_mobility","max_acf","max_lag"
+"1","EAST","grocery_pharmacy_av",0.489574640261939,113
+"2","EAST","parks_av",0.532367411914824,163
+"3","EAST","residential_av",0.497432204727759,118
+"4","EAST","retail_recreation_av",0.524187211104289,118
+"5","EAST","transit_stations_av",0.500633268369265,118
+"6","EAST","workplaces_av",0.348185143396701,72
+"7","EAST MIDLANDS","grocery_pharmacy_av",0.493729572900163,105
+"8","EAST MIDLANDS","parks_av",0.556137173455403,135
+"9","EAST MIDLANDS","residential_av",0.492496571638876,102
+"10","EAST MIDLANDS","retail_recreation_av",0.501907175282246,95
+"11","EAST MIDLANDS","transit_stations_av",0.520562128432299,105
+"12","EAST MIDLANDS","workplaces_av",0.357160299008101,104
+"13","LONDON","grocery_pharmacy_av",0.357616707895741,113
+"14","LONDON","parks_av",0.402203762131541,6
+"15","LONDON","residential_av",0.422961271287833,114
+"16","LONDON","retail_recreation_av",0.434205754300494,113
+"17","LONDON","transit_stations_av",0.403426043423583,113
+"18","LONDON","workplaces_av",0.313957507156449,72
+"19","NORTH EAST","grocery_pharmacy_av",0.438052062754639,20
+"20","NORTH EAST","parks_av",0.463534935443251,131
+"21","NORTH EAST","residential_av",0.380079162476441,94
+"22","NORTH EAST","retail_recreation_av",0.452035084236207,21
+"23","NORTH EAST","transit_stations_av",0.352737328339554,99
+"24","NORTH EAST","workplaces_av",0.332480076613715,44
+"25","NORTH WEST","grocery_pharmacy_av",0.409073322903738,50
+"26","NORTH WEST","parks_av",0.438023993105866,158
+"27","NORTH WEST","residential_av",0.400029178159581,120
+"28","NORTH WEST","retail_recreation_av",0.432451834316905,49
+"29","NORTH WEST","transit_stations_av",0.456180385980194,122
+"30","NORTH WEST","workplaces_av",0.323499965658991,56
+"31","SOUTH EAST","grocery_pharmacy_av",0.502734113012102,113
+"32","SOUTH EAST","parks_av",0.447239279069424,180
+"33","SOUTH EAST","residential_av",0.508017885325953,118
+"34","SOUTH EAST","retail_recreation_av",0.555623182178494,118
+"35","SOUTH EAST","transit_stations_av",0.540161120790646,119
+"36","SOUTH EAST","workplaces_av",0.370228517424878,73
+"37","SOUTH WEST","grocery_pharmacy_av",0.567687868017059,148
+"38","SOUTH WEST","parks_av",0.530096014104003,196
+"39","SOUTH WEST","residential_av",0.50570980723489,120
+"40","SOUTH WEST","retail_recreation_av",0.555019016256925,118
+"41","SOUTH WEST","transit_stations_av",0.53607077884494,148
+"42","SOUTH WEST","workplaces_av",0.39651177201702,122
+"43","WEST MIDLANDS","grocery_pharmacy_av",0.460954681523854,40
+"44","WEST MIDLANDS","parks_av",0.47666127932851,147
+"45","WEST MIDLANDS","residential_av",0.468826054705946,112
+"46","WEST MIDLANDS","retail_recreation_av",0.478310022629625,116
+"47","WEST MIDLANDS","transit_stations_av",0.469934619729047,118
+"48","WEST MIDLANDS","workplaces_av",0.346806750678823,63
+"49","YORKSHIRE AND THE HUMBER","grocery_pharmacy_av",0.456057002200841,53
+"50","YORKSHIRE AND THE HUMBER","parks_av",0.512907510907214,161
+"51","YORKSHIRE AND THE HUMBER","residential_av",0.425203687191619,123
+"52","YORKSHIRE AND THE HUMBER","retail_recreation_av",0.484622592647112,57
+"53","YORKSHIRE AND THE HUMBER","transit_stations_av",0.463142745133587,126
+"54","YORKSHIRE AND THE HUMBER","workplaces_av",0.343684571553581,63

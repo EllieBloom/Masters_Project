@@ -100,6 +100,8 @@ plot_regions_mobility_raw <- ggplot(data=mobility_tibble_raw, aes(x=date,y=mobil
   scale_color_hue(labels = labels_list) 
 
 plot_regions_mobility_raw 
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_mobility_raw.pdf",plot_regions_mobility_raw, device="pdf")
 
 # Plot to check - moving average
 
@@ -131,6 +133,8 @@ plot_regions_mobility_av <- ggplot(data=mobility_tibble_av, aes(x=date,y=mobilit
   scale_color_hue(labels = labels_list_av) 
 
 plot_regions_mobility_av
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_mobility_av.pdf",plot_regions_mobility_av, device="pdf")
 
 
 
@@ -191,11 +195,14 @@ plot_regions_cases <- ggplot(data=cases_tibble, aes(x=date,y=cases))+
         strip.text=element_text(color="black", size=10, face="bold"))
 
 plot_regions_cases 
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_cases.pdf",plot_regions_cases , device="pdf")
+
 
 
 ## Loading REACT point estimate prevalence data --------------------------------
 
-prevpath <- "/Users/elliebloom/Desktop/Masters/Project/Data/REACT_prevalence"
+prevpath <- "/Users/elliebloom/Desktop/Masters/Project/Data/REACT_prevalence/point_estimates"
 
 prevfilenames <- list.files(path=prevpath, full.names=TRUE)
 
@@ -229,7 +236,7 @@ plot_regions_prev <- ggplot(data=prev_tibble, aes(x=date,y=p*100))+
                date_labels="%Y") +
   theme_light() +
   labs(x="Date",y="Prevalence (%)",
-       title = "REACT B-Spline covid-19 prevalence in England")+
+       title = "REACT points estimates COVID-19 prevalence in England")+
   theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
         legend.title=element_blank(),
         axis.title.x=element_text(size=10),
@@ -237,9 +244,73 @@ plot_regions_prev <- ggplot(data=prev_tibble, aes(x=date,y=p*100))+
         strip.text=element_text(color="black", size=10, face="bold"))
 
 plot_regions_prev 
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_prev.pdf",plot_regions_prev,device="pdf")
 
 
-# Summary and saving 5 datasets -------------------------------------------
+## Loading REACT smoothed prevalence data --------------------------------
+
+prevsmoothpath <- "/Users/elliebloom/Desktop/Masters/Project/Data/REACT_prevalence/b_splines"
+
+prevsmoothfilenames <- list.files(path=prevsmoothpath, full.names=TRUE)
+
+df_prev_smooth <- NA
+
+for (i in 1:length(prevsmoothfilenames)){
+  df<-readRDS(prevsmoothfilenames[i])
+  df$region <- region_list[i]
+  print(ncol(df))
+  df_prev_smooth <- rbind(df_prev_smooth,df)
+}
+
+df_prev_smooth <- df_prev_smooth[-1,]
+str(df_prev_smooth$d_comb)
+df_prev_smooth$d_comb <- as.Date(df_prev_smooth$d_comb,format="%Y-%m-%d")
+
+# inverse logit the prevalence figures
+df_prev_smooth
+
+
+
+library(pubh)
+
+df_prev_smooth[,c("p", "lb_2.5", "lb_5",
+                  "lb_25", "ub_97.5", "ub_95", "ub_75" )] <-
+  inv_logit(df_prev_smooth[,c("p", "lb_2.5", "lb_5",
+                    "lb_25", "ub_97.5", "ub_95", "ub_75" )])
+
+prev_smooth_tibble <- df_prev_smooth %>%
+  as_tsibble(key=region,index=d_comb)
+
+# Plot to check
+
+plot_regions_prev_smooth <- ggplot(data=prev_smooth_tibble, aes(x=d_comb,y=p*100))+
+  geom_line(col="#02893B") +
+  facet_wrap(.~region,scales="free") + 
+  scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+                                             to = max(x), 
+                                             by = "1 year"),
+               minor_breaks = function(x) seq.Date(from = min(x), 
+                                                   to = max(x), 
+                                                   by = "6 months"),
+               date_labels="%Y") +
+  theme_light() +
+  labs(x="Date",y="Prevalence (%)",
+       title = "REACT B-Spline covid-19 prevalence in England")+
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+plot_regions_prev_smooth
+
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_prev_smooth.pdf",plot_regions_prev_smooth,device="pdf")
+
+
+
+# Summary and saving 6 datasets -------------------------------------------
 
 # Creating 5 datasets:
 # 1. mobility_tibble -> includes both raw and moving average mobility
@@ -255,3 +326,4 @@ saveRDS(mobility_tibble_raw,"mobility_tibble_raw.rds")
 saveRDS(mobility_tibble_av,"mobility_tibble_av.rds")
 saveRDS(cases_tibble,"cases_tibble.rds")
 saveRDS(prev_tibble,"prev_tibble.rds")
+saveRDS(prev_smooth_tibble,"prev_smooth_tibble.rds")
