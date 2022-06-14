@@ -117,12 +117,21 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 
 # Dynamic Time warping  - prev vs mobility -------------------------------------
 
+start_date <- REACT_start
+end_date <- lockdown_2_start%m+%months(-1)
+
 dtw_lag <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],
                  london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date])
 
 dtw_lag$distance
 # 64.767 days
 
+
+dtw_lag_log <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],
+               min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date])))
+
+dtw_lag_log$distance
+# 51 days -> ~ 7 weeks
 
 ## 4-months moving window --------------------------------------------------
 
@@ -147,15 +156,20 @@ dtw_results_4months$start_date <- as.Date(dtw_results_4months$start_date)
 dtw_results_4months$end_date <- as.Date(dtw_results_4months$end_date)
 
 
-dtw_results_4months %>%
-  ggplot(aes(x=start_date,y=dtw_lag/7))+
-  geom_smooth(se=FALSE)+
-  geom_line()+
-  labs(y="Dynamic Time Warping lag (Weeks)",
-       x="Start date of 4 month window",
-       subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
-  ggtitle("Dynamic Time Warping Lag over varying 4 month windows")+
-  theme_light()
+plot_dtw_4months_notlogged <- dtw_results_4months %>%
+                                ggplot(aes(x=start_date,y=dtw_lag/7))+
+                                geom_smooth(se=FALSE)+
+                                geom_line()+
+                                labs(y="Dynamic Time Warping lag (Weeks)",
+                                     x="Start date of 4 month window",
+                                     subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
+                                ggtitle("Dynamic Time Warping Lag over varying 4 month windows")+
+                                theme_light()
+plot_dtw_4months_notlogged
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(dtw_results_4months,"dt_4months_notlogged.csv")
+ggsave("plot_dtw_4months_notlogged.pdf",plot_dtw_4months_notlogged)
 
 ## 6-months moving window --------------------------------------------------
 
@@ -195,15 +209,17 @@ dtw_results_6months %>%
 
 dtw_results_4months_log <- NA
 
-for (i in seq(1,75,1)){
+for (i in seq(1,60,1)){
   start_date <- REACT_start%m+%weeks(i-1)
   end_date <- REACT_start%m+%months(4)%m+%weeks(i-1)
   alignment <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],
-                   log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
+                   min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])))
   distance <- alignment$distance 
   results <- c(start_date, end_date, distance)
   dtw_results_4months_log <- rbind(dtw_results_4months_log,results)
 }
+
+# It looks like this might be giving hours? But how??
 
 dtw_results_4months_log <- dtw_results_4months_log[-1,]
 colnames(dtw_results_4months_log) <- c("start_date", "end_date", "dtw_lag")
@@ -214,29 +230,39 @@ dtw_results_4months_log$end_date <- as.Date(dtw_results_4months_log$end_date)
 
 dtw_results_4months_log %>%
   ggplot(aes(x=start_date,y=dtw_lag/7))+
-  geom_smooth(se=FALSE)+
   geom_line()+
+  geom_smooth(se=FALSE)+
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 4 month window",
-       subtitle="Log(prevalence) vs rolling av(mobility)") +
-  ggtitle("Dynamic Time Warping Lag over varying 4 month windows - 1 week movements")+
+       subtitle="Log(prevalence) vs rolling av(mobility) - 1 week movements") +
+  ggtitle("Dynamic Time Warping Lag over varying 4 month windows")+
   theme_light()
+
+# Jumpy but around a mean
+mean(dtw_results_4months_log$dtw_lag)
+
+
 
 
 ## Logging - 6 month window ----------------------------------------------
 
+# This is logged and works really nicely?! Need to check I understand the units of DTW
+
 
 dtw_results_6months_log <- NA
 
+i=1
 for (i in seq(1,67,1)){
   start_date <- REACT_start%m+%weeks(i-1)
   end_date <- REACT_start%m+%months(6)%m+%weeks(i-1)
   alignment <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],
-                   log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
+                   min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])))
   distance <- alignment$distance 
   results <- c(start_date, end_date, distance)
   dtw_results_6months_log <- rbind(dtw_results_6months_log,results)
 }
+
+# It looks like this might be giving hours? But how??
 
 dtw_results_6months_log <- dtw_results_6months_log[-1,]
 colnames(dtw_results_6months_log) <- c("start_date", "end_date", "dtw_lag")
@@ -246,25 +272,44 @@ dtw_results_6months_log$end_date <- as.Date(dtw_results_6months_log$end_date)
 
 
 dtw_results_6months_log %>%
-  ggplot(aes(x=start_date,y=dtw_lag/7))+
-  geom_smooth(se=FALSE)+
+  ggplot(aes(x=start_date,y=dtw_lag/(7)))+
   geom_line()+
+  geom_smooth(se=FALSE)+
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 6 month window",
        subtitle="Log(prevalence) vs rolling av(mobility) - 1 week movements") +
   ggtitle("Dynamic Time Warping Lag over varying 6 month windows")+
   theme_light()
 
+# Jumpy (really really jumpy...) but around a mean
+mean(dtw_results_6months_log$dtw_lag)
 
 
 
+# 4 month window between start and end date -------------------------------
+
+# start_date <- REACT_start
+# end_date <- lockdown_2_start%m+%months(-1)
+
+start_date
+end_date
+
+
+
+
+
+
+
+# Do I need to pass the ARIMA model through instead? How
+# Do I fully understand what the distance measure is? Is it definitely number of days??
+# It may be that CCF is easier to inerpret (but DTW is probably better??)
 
 
 # CCF  - prev vs mobility  ------------------------------------------------
 
-## One time period ---------------------------------------------------------
 
 
+## One time period - not logged  -----------------------------------------------
 
 lag_max=200
 
@@ -305,11 +350,53 @@ ccf_prev_mobility %>% filter(lag>=0) %>%
        subtitle="Start of REACT to 1 month before end of lockdown 2")+
   xlim(0,200/7)+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
+  ggtitle("Cross correlation function (CCF) for workplace mobility and prevalence London")+
   theme_light()
 
 
+## One time period -  logged  -----------------------------------------------
 
+lag_max=200
+
+ccf_prev_mobility_log <- ccf(min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])),
+                         rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
+                         lag.max=lag_max,na.action=na.pass)
+
+
+
+ccf_prev_mobility_log <- as.data.frame(cbind(ccf_prev_mobility_log$acf,ccf_prev_mobility_log$lag))
+colnames(ccf_prev_mobility_log)[1:2]<-c("acf","lag")
+
+ccf_prev_mobility_log$lag[which.max(ccf_prev_mobility_log$acf)]
+# Max CCF is now 83 -> very long  long ~ 12 weeks
+
+# Calculating confidence intervals for lag 1 to 200
+n <- nrow(london_cases_ts)
+k <- seq(1,200,1)
+
+ccf_prev_mobility_log$n <- nrow(london_cases_ts)
+
+ccf_prev_mobility_log <- ccf_prev_mobility_log %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
+  mutate(lower_ci = -qnorm(0.975)*sqrt(1/(n-lag)))
+
+ccf_prev_mobility_log %>% filter(lag>=0) %>%
+  ggplot(aes(x=lag/7))+
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_line(aes(y=acf), color="royal blue") +
+  geom_hline(yintercept=0, color="dark grey") +
+  annotate("pointrange", x=ccf_prev_mobility_log$lag[which.max(ccf_prev_mobility_log$acf)]/7,
+           y=max(ccf_prev_mobility_log$acf),ymin=0, ymax=max(ccf_prev_mobility_log$acf), col="red", linetype="dashed")+
+  annotate("text", label="Max CCF", x=ccf_prev_mobility_log$lag[which.max(ccf_prev_mobility_log$acf)]/7,
+           y=max(ccf_prev_mobility_log$acf)+0.02, col="Red") +
+  #ylim(-0.2,0.4) +
+  labs(x="Lag (weeks)", y="CCF",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
+  xlim(0,200/7)+
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
+  ggtitle("Cross correlation function (CCF) for workplace mobility and log(prevalence)")+
+  theme_light()
 
 ## 6-month moving window ---------------------------------------------------
 ccf_combined_results_6months <-NA
@@ -394,33 +481,3 @@ ccf_combined_results_6months_log %>%
 
 
 
-
-
-# Granger causality test --------------------------------------------------
-
-
-# https://www.r-bloggers.com/2021/11/granger-causality-test-in-r-with-example/
-#grangertest(x, y, order = 1, na.action = na.omit, ...)
-
-prev_test <- london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<lockdown_2_start]
-length(prev_test)
-prev_test <- prev_test[4:(length(prev_test)-3)]
-length(prev_test)
-mobility_test <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<lockdown_2_start],7)
-length(mobility_test)
-# Check same lengths
-length(prev_test)==length(mobility_test)
-
-# Need to decide upon the lag to use in the test first, although could this be used to see where causation is?
-granger_test_mob_prev <- grangertest(prev_test,mobility_test, order=50) 
-granger_test_mob_prev 
-# p>0.05 -> mobility not useful in forecasting cases
-# p<0.05 -> mobility useful in forecasting cases
-
-
-# order is the max lag not the only lag...
-# http://www.scholarpedia.org/article/Granger_causality#:~:text=Granger%20causality%20is%20a%20statistical,values%20of%20X2%20alone.
-# Maybe need to offset the time series by a chosen lag BEFORE doing the test
-# But then what is the order?? Is this the p in ARIMA? i.e. autoregressiveness?
-
-# This test requires stationarity... so tranformation and differencing must be done? but then this loses a lot of meaning??
