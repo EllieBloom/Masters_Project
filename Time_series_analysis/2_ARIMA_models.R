@@ -5,10 +5,18 @@
 
 # Setup -------------------------------------------------------------------
 
-
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 library(tidyverse)
 library(astsa) # Time series package used in datacamp course
+library(lubridate)
+library(zoo)
+
+
+# Defining min max function
+
+min_max_normalise <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
 
 # Useful dates ------------------------------------------------------------
 
@@ -27,6 +35,8 @@ lockdown_2_end <- as.Date("2020-12-02","%Y-%m-%d")
 
 lockdown_3_start <- as.Date("2021-01-06","%Y-%m-%d")
 lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
+
+REACT_start <-as.Date("2020-05-01","%Y-%m-%d")
 
 
 # Loading tibbles ---------------------------------------------------------
@@ -49,8 +59,8 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 region_of_interest <- "LONDON"
 mobility_of_interest <- "workplaces"
 mobility_of_interest_av <- "workplaces_av"
-start_date <- lockdown_1_start
-end_date <- lockdown_2_start
+start_date <- REACT_start
+end_date <- lockdown_2_start%m+%months(-1) # Make it the month before the start of lockdown to allow for test/train split/forecasting
 
 
 
@@ -64,34 +74,20 @@ workplace_ts <- mobility_ts %>% filter(region=="LONDON", date>=start_date, date<
 
 ggplot(data=workplace_ts, aes(x=date,y=mobility)) +
   geom_line(color="royal blue") + 
-  ggtitle("Workplace mobility in London - end of lockdown 1 to start of lockdown 2")+
+  ggtitle("Workplace mobility in London")+
   labs(y="Mobility change from baseline (%)",
-       x="Date (2020)")+
+       x="Date (2020)",
+         subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
-
-
-# 
-# acf2(workplace_ts$mobility)
-# acf2(diff(workplace_ts$mobility, lag=7))
-# acf2(diff(diff(workplace_ts$mobility), lag=7))
 
 # Need to use min max scaling to bring all values between 0 and 1 so that they can be logged
 
-min_max_normalise <- function(x) {
-  return ((x - min(x)) / (max(x) - min(x)))
-}
-
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
-# Check normalisation
 summary(workplace_ts$mobility_normalised)
 
-table(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0])
-min(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised!=0])
 # Change any 0s to the non-zero miniumum
-
-
 workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised!=0])
-min(workplace_ts$mobility_normalised) # Looks like this worked
+min(workplace_ts$mobility_normalised) 
 
 
 # Normalised data
@@ -103,33 +99,31 @@ tsplot(diff(log(workplace_ts$mobility_normalised)))
 # Additional weekly seasonal differencing
 tsplot(diff(diff(log(workplace_ts$mobility_normalised),lag=7)))
 
-# Can't line this up with dates... not sure what to do about that
+# Creating log dd data to use later
 mobility_normalised_log_dd <- diff(diff(log(workplace_ts$mobility_normalised),lag=7))
 
 acf2(mobility_normalised_log_dd)
 
-sarima(workplace_ts$mobility_normalised,1,1,1,1,2,1,7)
-
+# Fitting auto model
 fit_log <- workplace_ts %>%
   model( auto = ARIMA(log(mobility_normalised), stepwise = FALSE, approx = FALSE)
   )
 
-
 fit_log
  
 # Auto gives
-# p = 3
-# d = 1
+# p = 1
+# d = 0
 # q = 1
-# P = 2
-# D = 0
-# Q = 0
+# P = 0
+# D = 1
+# Q = 1
 # S = 7
 
 
-sarima(log(workplace_ts$mobility_normalised),3,1,1,2,0,0,7)
-# AIC 1.572744
-# BIC 1.687405
+sarima(log(workplace_ts$mobility_normalised),1,0,1,0,1,1,7)
+# AIC 0.8251765
+# BIC 0.925531
 
 # Looks pretty good - there are however heavy tails for redisuals -> not quite normal
 
@@ -141,10 +135,10 @@ fit <- workplace_ts %>%
 
 fit
 
-sarima(workplace_ts$mobility_normalised,3,0,2,0,1,1,7)
-
-# Better than logged data
-
+sarima(workplace_ts$mobility_normalised,1,0,1,1,1,2,7)
+# Better than logged data, especially on Ljung-Box test -> use unlogged for workplace mobility
+# AIC: -3.144342
+# BIC: -3.003846
 
 
 ## Official cases ----------------------------------------------------------
@@ -155,9 +149,10 @@ summary(london_cases_ts)
 
 ggplot(data=london_cases_ts, aes(x=date,y=cases)) +
   geom_line(color="red") + 
-  ggtitle("Official cases in London - end of lockdown 1 to start of lockdown 2")+
+  ggtitle("Official cases in London")+
   labs(y="Cases",
-       x="Date (2020)")+
+       x="Date (2020)",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
 
 # Normalisation
@@ -166,12 +161,9 @@ london_cases_ts$cases_normalised <- min_max_normalise(london_cases_ts$cases)
 # Check normalisation
 summary(london_cases_ts$cases_normalised)
 
-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
-# Change any 0s to e.g 0.001
-
-
+# Change min to be non-zero
 london_cases_ts$cases_normalised[london_cases_ts$cases_normalised==0]<-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
-min(london_cases_ts$cases_normalised) # Looks like this worked
+min(london_cases_ts$cases_normalised) # Check - ok
 
 
 # Normalised data
@@ -191,8 +183,12 @@ cases_fit_log <- london_cases_ts %>%
   )
 
 cases_fit_log
+# AIC: 1.130231
+# BIC: 1.190714
 
-sarima(log(london_cases_ts$cases_normalised),0,1,2,0,1,1,7)
+sarima(log(london_cases_ts$cases_normalised),0,1,1,0,1,1,7)
+# Fails Ljung-Box test on longer lags 
+
 
 # Try without log
 tsplot(diff(diff(london_cases_ts$cases_normalised,lag=7))) # looks a lot less stationary
@@ -201,6 +197,12 @@ cases_fit <- london_cases_ts %>%
   model( auto = ARIMA(cases_normalised, stepwise = FALSE, approx = FALSE)
   )
 
+cases_fit
+# AIC: 1.182877
+# BIC: 1.26352
+
+sarima(log(london_cases_ts$cases_normalised),0,1,1,2,1,0,7)
+# Not much different -> not the best models in general, but just about ok?
 
 
 ## Smoothed prevalence -----------------------------------------------------
@@ -215,13 +217,13 @@ london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON", d_comb>=
 
 ggplot(data=london_prev_smooth_ts, aes(x=d_comb,y=p)) +
   geom_line(color="dark green") + 
-  ggtitle("REACT p-spline prevalence - end of lockdown 1 to start of lockdown 2")+
+  ggtitle("REACT p-spline prevalence")+
   labs(y="Prevalence (%)",
-       x="Date (2020)")+
+       x="Date (2020)",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
 
 # Normalisation
-
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
 # Check normalisation
 summary(london_prev_smooth_ts$prev_normalised)
@@ -250,12 +252,13 @@ tsplot(diff(diff(diff(log(london_prev_smooth_ts$prev_normalised),lag=10),lag=10)
 prev_smooth_fit <- london_prev_smooth_ts %>%
   model( auto = ARIMA(prev_normalised, stepwise = FALSE, approx = FALSE)
   )
-# this doesn't work...
 
 prev_smooth_fit
 
-sarima(london_prev_smooth_ts$prev_normalised,1,2,5)
-# Not great at all...
+sarima(london_prev_smooth_ts$prev_normalised,4,2,2)
+# AIC: -13.15557
+# BIC: -13.01812
+# Fails on the Ljung-Box test -> NOT stationary
 
 # Try log
 prev_smooth_fit_log <- london_prev_smooth_ts %>%
@@ -265,7 +268,9 @@ prev_smooth_fit_log <- london_prev_smooth_ts %>%
 prev_smooth_fit_log
 sarima(log(london_prev_smooth_ts$prev_normalised),1,1,1)
 # A lot better!
-
+# AIC: - 0.03250049
+# BIC: 0.04570094
+# Does pretty well on all tests! Definitely better fit logged (despited higher AIC/BIC)
 
 
 
@@ -274,13 +279,10 @@ sarima(log(london_prev_smooth_ts$prev_normalised),1,1,1)
 
 ## Workplace mobility and cases --------------------------------------------
 
+# Now aligned in terms of dates
 summary(workplace_ts$date)
-# Min 26/03/202
-# Max 04/11/2020
-
 summary(london_cases_ts$date)
-# Min 26/03/2020
-# Max 04/11/2020
+
 
 # Match in terms of dates
 
@@ -299,9 +301,6 @@ ccf
 ccf_results <- as.data.frame(cbind(ccf$acf,ccf$lag))
 colnames(ccf_results)[1:2]<-c("acf","lag")
 
-library(zoo)
-ggplot(data=ccf_results, aes(x=date,y=rollmean)+
-  geom_line()
 
 # Just do CCF on normalised data - using rolling mean for both
 
@@ -315,7 +314,7 @@ ccf_norm <- as.data.frame(cbind(ccf_norm$acf,ccf_norm$lag))
 colnames(ccf_norm)[1:2]<-c("acf","lag")
 
 ccf_norm$lag[which.max(ccf_norm$acf)]
-# Max CCF is 33! -> more reasonable Very similar to 4 weeks in previous paper :)
+# Max CCF is 11! -> differs greatly dependent on the date range -> much shorter when I start in May compared to March
 
 # Calculating confidence intervals for lag 1 to 200
 n <- nrow(london_cases_ts)
@@ -342,76 +341,11 @@ ggplot(aes(x=lag/7))+
   annotate("text", label="Max CCF", x=ccf_norm$lag[which.max(ccf_norm$acf)]/7,
            y=max(ccf_norm$acf)+0.02, col="Red") +
   #ylim(-0.2,0.4) +
-  labs(x="Lag (weeks)", y="CCF")+
+  labs(x="Lag (weeks)", y="CCF", subtitle="Start of REACT to 1 month before end of lockdown 2")+
   xlim(0,200/7)+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
     ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
   theme_light()
-
-
-##  Workplace mobility and cases - restricting first date ----------------
-
-workplace_ts_rest <- workplace_ts %>% filter(date>=min(london_prev_smooth_ts$d_comb))
-
-london_cases_ts_rest<- london_cases_ts %>% filter(date>=min(london_prev_smooth_ts$d_comb))
-
-
-# Just do CCF on normalised data - using rolling mean for both
-
-ccf_norm <- ccf(rollmean(london_cases_ts_rest$cases_normalised,7),
-                rollmean(workplace_ts_rest$mobility_normalised,7),
-                lag.max=lag_max,na.action=na.pass)
-
-# Should I be normalising then rolling averaging or the other way around?
-
-ccf_norm <- as.data.frame(cbind(ccf_norm$acf,ccf_norm$lag))
-colnames(ccf_norm)[1:2]<-c("acf","lag")
-
-ccf_norm$lag[which.max(ccf_norm$acf)]
-# Max CCF is 33! -> more reasonable Very similar to 4 weeks in previous paper :)
-
-# Calculating confidence intervals for lag 1 to 200
-n <- nrow(london_cases_ts_rest)
-k <- seq(1,200,1)
-
-ccf_norm$n <- nrow(london_cases_ts)
-
-ccf_norm <- ccf_norm %>% 
-  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
-  mutate(lower_ci = -qnorm(0.975)*sqrt(1/(n-lag)))
-
-
-
-ccf_norm %>% filter(lag>=0) %>%
-  ggplot(aes(x=lag/7))+
-  geom_area(aes(y=upper_ci), fill="light grey")+
-  geom_area(aes(y=lower_ci), fill="light grey") +
-  geom_line(aes(y=acf), color="royal blue") +
-  geom_hline(yintercept=0, color="dark grey") +
-  # geom_hline(yintercept = qnorm(0.975)/sqrt(nrow(london_cases_ts)), linetype="dashed", color="dark grey")+ # upper CI bound (just uses quantiles)
-  # geom_hline(yintercept = -qnorm(0.975)/sqrt(nrow(london_cases_ts)), linetype="dashed", color="dark grey")+ # lower CI bound (just uses quantiles)
-  annotate("pointrange", x=ccf_norm$lag[which.max(ccf_norm$acf)]/7,
-           y=max(ccf_norm$acf),ymin=0, ymax=max(ccf_norm$acf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_norm$lag[which.max(ccf_norm$acf)]/7,
-           y=max(ccf_norm$acf)+0.02, col="Red") +
-  #ylim(-0.2,0.4) +
-  labs(x="Lag (weeks)", y="CCF")+
-  xlim(0,200/7)+
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
-  theme_light()
-
-
-
-ccf_norm$lag[which.max(ccf_norm$acf)]
-# When I start in May -> lag is so much shorter!
-
-
-
-
-
-
-
 
 
 
@@ -420,34 +354,17 @@ ccf_norm$lag[which.max(ccf_norm$acf)]
 
 ## Workplace mobility and smoothed prev --------------------------------------------
 
-summary(workplace_ts$date)
-# Min 26/03/2020
-# Max 04/11/2020
 
-
-summary(london_prev_smooth_ts)
-# Min date - 01/05/2020
-# Max date - 04/11/02020
-
-difftime(min(london_prev_smooth_ts$d_comb),min(workplace_ts$date), units="days") # 36 days lag already -> may need to add this on...
-
-
-
-
-# Repeat this but restrict london to alternative start date
-
-workplace_ts_rest <- workplace_ts %>% filter(date>=min(london_prev_smooth_ts$d_comb))
-nrow(workplace_ts_rest)
 
 ccf_norm <- ccf(london_prev_smooth_ts$prev_normalised,
-                rollmean(workplace_ts_rest$mobility_normalised,7),
+                rollmean(workplace_ts$mobility_normalised,7),
                 lag.max=lag_max,na.action=na.pass)
 
 ccf_norm <- as.data.frame(cbind(ccf_norm$acf,ccf_norm$lag))
 colnames(ccf_norm)[1:2]<-c("acf","lag")
 
 ccf_norm$lag[which.max(ccf_norm$acf)]
-# lag is now 17+36 = 53 days ~ 7.5 weeks
+# lag is now 73 days ~ 10 weeks? Why so much longer??
 
 
 
@@ -462,7 +379,7 @@ ccf_norm <- ccf_norm %>%
   mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
   mutate(lower_ci = -qnorm(0.975)*sqrt(1/(n-lag)))
 
-#
+
 
 ccf_norm %>% filter(lag>=0) %>%
   ggplot(aes(x=lag/7))+
@@ -475,14 +392,52 @@ ccf_norm %>% filter(lag>=0) %>%
   annotate("text", label="Max CCF", x=ccf_norm$lag[which.max(ccf_norm$acf)]/7,
            y=max(ccf_norm$acf)+0.02, col="Red") +
   #ylim(-0.2,0.4) +
-  labs(x="Lag (weeks)", y="CCF")+
+  labs(x="Lag (weeks)", y="CCF",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
   xlim(0,200/7)+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
   ggtitle("Cross correlation function (CCF) for workplace mobility and prevalence in London")+
   theme_light()
 
-# Actually far shorter
-ccf_norm$lag[which.max(ccf_norm$acf)]
+# Repeat with logged prevalence
+
+ccf_norm_log <- ccf(log(london_prev_smooth_ts$prev_normalised),
+                rollmean(workplace_ts$mobility_normalised,7),
+                lag.max=lag_max,na.action=na.pass)
+
+ccf_norm_log <- as.data.frame(cbind(ccf_norm_log$acf,ccf_norm_log$lag))
+colnames(ccf_norm_log)[1:2]<-c("acf","lag")
+
+ccf_norm_log$lag[which.max(ccf_norm_log$acf)]
+# lag is now 83 days ~ 12 weeks -> why so long? perhaps DTW would be better....
+
+
+ccf_norm_log <- ccf_norm_log %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
+  mutate(lower_ci = -qnorm(0.975)*sqrt(1/(n-lag)))
+
+
+ccf_norm_log %>% filter(lag>=0) %>%
+  ggplot(aes(x=lag/7))+
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_line(aes(y=acf), color="royal blue") +
+  geom_hline(yintercept=0, color="dark grey") +
+  annotate("pointrange", x=ccf_norm_log$lag[which.max(ccf_norm_log$acf)]/7,
+           y=max(ccf_norm_log$acf),ymin=0, ymax=max(ccf_norm_log$acf), col="red", linetype="dashed")+
+  annotate("text", label="Max CCF", x=ccf_norm_log$lag[which.max(ccf_norm_log$acf)]/7,
+           y=max(ccf_norm_log$acf)+0.02, col="Red") +
+  #ylim(-0.2,0.4) +
+  labs(x="Lag (weeks)", y="CCF",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
+  xlim(0,200/7)+
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
+  ggtitle("Cross correlation function (CCF) for workplace mobility and prevalence in London")+
+  theme_light()
+
+
+
+
 
 
 
