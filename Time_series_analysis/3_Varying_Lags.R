@@ -12,6 +12,12 @@ library(astsa) # Time series package used in datacamp course
 library(lubridate) # Using to add months to date
 library(lmtest) # For granger causality test
 
+# Functions
+
+min_max_normalise <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
 
 # Useful dates ------------------------------------------------------------
 
@@ -33,7 +39,10 @@ lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
 
 REACT_start <-as.Date("2020-05-01","%Y-%m-%d")
 
-# Looking at London workplace mobility from the start of lockdown 1 to the start of lockdown 2
+start_date <- REACT_start
+end_date <- lockdown_2_start%m+%months(-1)
+
+# Looking at London workplace mobility from the start of REACT
 
 region_of_interest <- "LONDON"
 mobility_of_interest <- "workplaces"
@@ -61,10 +70,6 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 
 
 workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start)
-
-min_max_normalise <- function(x) {
-  return ((x - min(x)) / (max(x) - min(x)))
-}
 
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
@@ -112,10 +117,12 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 
 # Dynamic Time warping  - prev vs mobility -------------------------------------
 
-dtw_lag <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<lockdown_2_start],
-                 london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<lockdown_2_start])
+dtw_lag <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],
+                 london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date])
 
 dtw_lag$distance
+# 64.767 days
+
 
 ## 4-months moving window --------------------------------------------------
 
@@ -146,7 +153,7 @@ dtw_results_4months %>%
   geom_line()+
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 4 month window",
-       subtitle="Prevalence vs rolling av(mobility)") +
+       subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
   ggtitle("Dynamic Time Warping Lag over varying 4 month windows")+
   theme_light()
 
@@ -178,7 +185,7 @@ dtw_results_6months %>%
   geom_line()+
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 6 month window",
-       subtitle="Prevalence vs rolling av(mobility)") +
+       subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
   ggtitle("Dynamic Time Warping Lag over varying 6 month windows")+
   theme_light()
 
@@ -212,7 +219,7 @@ dtw_results_4months_log %>%
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 4 month window",
        subtitle="Log(prevalence) vs rolling av(mobility)") +
-  ggtitle("Dynamic Time Warping Lag over varying 4 month windows")+
+  ggtitle("Dynamic Time Warping Lag over varying 4 month windows - 1 week movements")+
   theme_light()
 
 
@@ -244,7 +251,7 @@ dtw_results_6months_log %>%
   geom_line()+
   labs(y="Dynamic Time Warping lag (Weeks)",
        x="Start date of 6 month window",
-       subtitle="Log(prevalence) vs rolling av(mobility)") +
+       subtitle="Log(prevalence) vs rolling av(mobility) - 1 week movements") +
   ggtitle("Dynamic Time Warping Lag over varying 6 month windows")+
   theme_light()
 
@@ -255,15 +262,14 @@ dtw_results_6months_log %>%
 
 # CCF  - prev vs mobility  ------------------------------------------------
 
-
 ## One time period ---------------------------------------------------------
 
 
 
 lag_max=200
 
-ccf_prev_mobility <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<lockdown_2_start],
-                    rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<lockdown_2_start],7),
+ccf_prev_mobility <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date],
+                    rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
                     lag.max=lag_max,na.action=na.pass)
 
 
@@ -272,7 +278,7 @@ ccf_prev_mobility <- as.data.frame(cbind(ccf_prev_mobility$acf,ccf_prev_mobility
 colnames(ccf_prev_mobility)[1:2]<-c("acf","lag")
 
 ccf_prev_mobility$lag[which.max(ccf_prev_mobility$acf)]
-# Max CCF is 17! -> more reasonable Very similar to 4 weeks in previous paper :)
+# Max CCF is 48! -> pretty long ~ 7 weeks
 
 # Calculating confidence intervals for lag 1 to 200
 n <- nrow(london_cases_ts)
@@ -295,7 +301,8 @@ ccf_prev_mobility %>% filter(lag>=0) %>%
   annotate("text", label="Max CCF", x=ccf_prev_mobility$lag[which.max(ccf_prev_mobility$acf)]/7,
            y=max(ccf_prev_mobility$acf)+0.02, col="Red") +
   #ylim(-0.2,0.4) +
-  labs(x="Lag (weeks)", y="CCF")+
+  labs(x="Lag (weeks)", y="CCF",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
   xlim(0,200/7)+
   scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
   ggtitle("Cross correlation function (CCF) for workplace mobility and official cases in London")+
@@ -416,4 +423,4 @@ granger_test_mob_prev
 # Maybe need to offset the time series by a chosen lag BEFORE doing the test
 # But then what is the order?? Is this the p in ARIMA? i.e. autoregressiveness?
 
-# This test requires stationarity...
+# This test requires stationarity... so tranformation and differencing must be done? but then this loses a lot of meaning??
