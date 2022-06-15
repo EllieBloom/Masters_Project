@@ -444,7 +444,9 @@ ccf_norm_log %>% filter(lag>=0) %>%
 
 
 
-# Playing with DTW --------------------------------------------------------
+ccf_norm <- ccf_norm %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
+  mutate(lower_ci = -qnorm(0.975)*sqrt(1/(n-lag)))# Playing with DTW --------------------------------------------------------
 alignment <- dtw(workplace_ts$mobility_normalised, london_cases_ts$cases_normalised)
 alignment$distance # Get 33 from this -> EXACTLY the same as the lag method!!!
 

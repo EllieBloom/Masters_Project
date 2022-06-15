@@ -1,6 +1,4 @@
-# Granger Causality Test
-
-# Testing for causality between mobility and prevalence
+# Exploring VARIMA
 
 # Date started: 14th June 2022
 
@@ -11,6 +9,7 @@ library(tidyverse)
 library(astsa) # Time series package used in datacamp course
 library(lubridate) # Using to add months to date
 library(lmtest) # For granger causality test
+library(vars) # For VARIMA: https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
 
 # Functions
 min_max_normalise <- function(x) {
@@ -68,7 +67,7 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 ## Mobility - workplace ----------------------------------------------------
 
 
-workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces")
+workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start)
 
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
@@ -84,7 +83,7 @@ seq(1,nrow(prev_smooth_ts),10)
 
 prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
 
-london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON")
+london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON", d_comb>=REACT_start)
 
 # Normalisation
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
@@ -94,10 +93,10 @@ london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$prev_normalised==0]<
 min(london_cases_ts$cases_normalised) 
 
 
-# Official cases ----------------------------------------------------------
+## Official cases ----------------------------------------------------------
 
 
-london_cases_ts <- cases_ts %>% filter(region=="LONDON")
+london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=REACT_start)
 
 
 # Normalisation
@@ -112,76 +111,33 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 
 
 
-# Granger causality test --------------------------------------------------
-
-
-## Single lag --------------------------------------------------------------
-
-
-# From Script: 3_Varying_Lags.R
-dtw_lag <- round(50.59281,0)
-dtw_lag
-
-# https://www.r-bloggers.com/2021/11/granger-causality-test-in-r-with-example/
-#grangertest(x, y, order = 1, na.action = na.omit, ...)
-
-prev_test <- min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
-length(prev_test)
-prev_test <- prev_test[4:(length(prev_test)-3)] #needed because rollmean takes of values off either side
-length(prev_test)
-mobility_test <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)
-length(mobility_test)
-# Check same lengths
-length(prev_test)==length(mobility_test)
-
-# Using lag from static DTW
-granger_test_mob_prev <- grangertest(prev_test~mobility_test, order=dtw_lag) #,singular.ok=TRUE
-granger_test_mob_prev 
-# p>0.05 -> mobility not useful in forecasting cases
-# p<0.05 -> mobility useful in forecasting cases
-
-
-# Range of significant lags -----------------------------------------------
-
-sig_lags<-read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags/ccf_prev_mobility_log_sig_lags.csv")
-sig_lags
-
-min_lag<-min(sig_lags$lag)
-min_lag
-max_lag<-max(sig_lags$lag)
-max_lag
-
-n_lags <- max_lag-min_lag
-n_lags
-
-start_date_prev <- REACT_start
-start_date_prev
-end_date_prev <- lockdown_2_start%m+%months(-1)
-end_date_prev
-
-start_date_mobility <- start_date_prev%m+%days(min_lag)
-start_date_mobility 
-end_date_mobility <- end_date_prev%m+%days(min_lag)
-end_date_mobility
-
-
-prev_test_range <- min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date_prev & london_prev_smooth_ts$d_comb<end_date_prev]))
-length(prev_test_range)
-prev_test_range <- prev_test_range[4:(length(prev_test_range)-3)] #needed because rollmean takes of values off either side
-length(prev_test_range)
-mobility_test_range <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date_mobility & workplace_ts$date<end_date_mobility],7)
-length(mobility_test_range)
-# Check same lengths
-length(prev_test_range)==length(mobility_test_range)
 
 
 
-# Using lag from static DTW
-granger_test_mob_prev <- grangertest(prev_test_range,mobility_test_range, order=n_lags) 
-granger_test_mob_prev 
-# p>0.05 -> mobility not useful in forecasting cases
-# p<0.05 -> mobility useful in forecasting cases
 
-# Can maybe combined VARIMA and Granger Causality test...
-https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
 
+
+
+# Playing around ----------------------------------------------------------
+# Following: https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
+
+series <- cbind(workplace_ts$mobility_normalised[workplace_ts$date>=start_date&workplace_ts$date<end_date],
+            min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date&london_prev_smooth_ts$d_comb<end_date])))
+
+colnames(series) <-c("mobility_normalised","prev_log_normalised")
+head(series)
+
+##Model selection
+var_order <- VARselect(series, lag.max = 5, type = "const")
+var_order$selection
+
+##Fit VAR model as suggested by VAR select information criterion
+model_var <- VAR(series, type = "const", lag.max = 10, ic = "SC")
+summary(model_var)
+
+##Collect coefficient values
+coef_list <- coef(model_var)
+coef_list
+
+
+# Perhaps I should re-align? Also I don't want this to go both ways, just one way...

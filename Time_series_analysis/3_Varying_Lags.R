@@ -398,6 +398,18 @@ ccf_prev_mobility_log %>% filter(lag>=0) %>%
   ggtitle("Cross correlation function (CCF) for workplace mobility and log(prevalence)")+
   theme_light()
 
+# Find all of the lags which are significant!
+
+ccf_prev_mobility_log_sig_lags <-
+      ccf_prev_mobility_log %>% filter(lag>=0) %>% filter(acf>upper_ci)
+# Significant from lags 49 to 101 -> could therefore shift the time series forward 49 to make it line up
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(ccf_prev_mobility_log_sig_lags,"ccf_prev_mobility_log_sig_lags.csv")
+
+
+
+
 ## 6-month moving window ---------------------------------------------------
 ccf_combined_results_6months <-NA
 

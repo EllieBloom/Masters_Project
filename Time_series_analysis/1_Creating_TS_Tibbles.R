@@ -250,48 +250,44 @@ ggsave("plot_regions_prev.pdf",plot_regions_prev,device="pdf")
 
 ## Loading REACT smoothed prevalence data --------------------------------
 
-prevsmoothpath <- "/Users/elliebloom/Desktop/Masters/Project/Data/REACT_prevalence/b_splines"
+# Updated data - one point per day
 
-prevsmoothfilenames <- list.files(path=prevsmoothpath, full.names=TRUE)
+regional_prevalence <- readRDS("~/Desktop/Masters/Project/Data/REACT_prevalence/regional_prevalence.RDS")
 
-df_prev_smooth <- NA
-
-for (i in 1:length(prevsmoothfilenames)){
-  df<-readRDS(prevsmoothfilenames[i])
-  df$region <- region_list[i]
-  print(ncol(df))
-  df_prev_smooth <- rbind(df_prev_smooth,df)
-}
-
-df_prev_smooth <- df_prev_smooth[-1,]
-str(df_prev_smooth$d_comb)
-df_prev_smooth$d_comb <- as.Date(df_prev_smooth$d_comb,format="%Y-%m-%d")
-
-# inverse logit the prevalence figures
-df_prev_smooth
+# Change the names of the regions to match google
+regional_prevalence <- regional_prevalence %>% 
+  mutate(region = 
+           case_when(region=="EE" ~"EAST" ,
+                     region=="EM"~"EAST MIDLANDS" ,
+                     region=="LN"~"LONDON" ,
+                     region=="NE"~"NORTH EAST",
+                     region=="NW"~"NORTH WEST",
+                     region=="SE"~"SOUTH EAST" ,
+                     region=="SW"~"SOUTH WEST" ,
+                     region=="WM"~"WEST MIDLANDS",
+                     region=="YH"~"YORKSHIRE AND THE HUMBER" ))
 
 
+# Inverse logit the relevant columns
 
 library(pubh)
 
-df_prev_smooth[,c("p", "lb_2.5", "lb_5",
-                  "lb_25", "ub_97.5", "ub_95", "ub_75" )] <-
-  inv_logit(df_prev_smooth[,c("p", "lb_2.5", "lb_5",
-                    "lb_25", "ub_97.5", "ub_95", "ub_75" )])
+regional_prevalence[ ,2:6] <-
+  inv_logit(regional_prevalence[ ,2:6])
 
-prev_smooth_tibble <- df_prev_smooth %>%
+
+# Creating the ts  tibble
+prev_smooth_tibble <- regional_prevalence %>%
   as_tsibble(key=region,index=d_comb)
-
-# Plot to check
 
 plot_regions_prev_smooth <- ggplot(data=prev_smooth_tibble, aes(x=d_comb,y=p*100))+
   geom_line(col="#02893B") +
-  facet_wrap(.~region,scales="free") + 
-  scale_x_date(breaks = function(x) seq.Date(from = min(x), 
-                                             to = max(x), 
+  facet_wrap(.~region,scales="free") +
+  scale_x_date(breaks = function(x) seq.Date(from = min(x),
+                                             to = max(x),
                                              by = "1 year"),
-               minor_breaks = function(x) seq.Date(from = min(x), 
-                                                   to = max(x), 
+               minor_breaks = function(x) seq.Date(from = min(x),
+                                                   to = max(x),
                                                    by = "6 months"),
                date_labels="%Y") +
   theme_light() +
@@ -307,6 +303,90 @@ plot_regions_prev_smooth
 
 setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
 ggsave("plot_regions_prev_smooth.pdf",plot_regions_prev_smooth,device="pdf")
+
+plot_regions_prev_smooth_overlay <- ggplot(data=prev_smooth_tibble, aes(x=d_comb,y=p*100, color=region))+
+  geom_line() +
+  scale_x_date(breaks = function(x) seq.Date(from = min(x),
+                                             to = max(x),
+                                             by = "1 year"),
+               minor_breaks = function(x) seq.Date(from = min(x),
+                                                   to = max(x),
+                                                   by = "6 months"),
+               date_labels="%Y") +
+  theme_light() +
+  labs(x="Date",y="Prevalence (%)",
+       title = "REACT B-Spline covid-19 prevalence in England")+
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+        legend.title=element_blank(),
+        axis.title.x=element_text(size=10),
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", size=10, face="bold"))
+
+plot_regions_prev_smooth_overlay
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+ggsave("plot_regions_prev_smooth_overlay.pdf",plot_regions_prev_smooth_overlay,device="pdf")
+
+
+
+
+# Old data - had ten points per days
+#prevsmoothpath <- "/Users/elliebloom/Desktop/Masters/Project/Data/REACT_prevalence/b_splines"
+# 
+# prevsmoothfilenames <- list.files(path=prevsmoothpath, full.names=TRUE)
+# 
+# df_prev_smooth <- NA
+# 
+# for (i in 1:length(prevsmoothfilenames)){
+#   df<-readRDS(prevsmoothfilenames[i])
+#   df$region <- region_list[i]
+#   print(ncol(df))
+#   df_prev_smooth <- rbind(df_prev_smooth,df)
+# }
+# 
+# df_prev_smooth <- df_prev_smooth[-1,]
+# str(df_prev_smooth$d_comb)
+# df_prev_smooth$d_comb <- as.Date(df_prev_smooth$d_comb,format="%Y-%m-%d")
+# 
+# # inverse logit the prevalence figures
+# df_prev_smooth
+# 
+# 
+# 
+# library(pubh)
+# 
+# df_prev_smooth[,c("p", "lb_2.5", "lb_5",
+#                   "lb_25", "ub_97.5", "ub_95", "ub_75" )] <-
+#   inv_logit(df_prev_smooth[,c("p", "lb_2.5", "lb_5",
+#                     "lb_25", "ub_97.5", "ub_95", "ub_75" )])
+# 
+# prev_smooth_tibble <- df_prev_smooth %>%
+#   as_tsibble(key=region,index=d_comb)x
+# 
+# # Plot to check
+# 
+# plot_regions_prev_smooth <- ggplot(data=prev_smooth_tibble, aes(x=d_comb,y=p*100))+
+#   geom_line(col="#02893B") +
+#   facet_wrap(.~region,scales="free") + 
+#   scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+#                                              to = max(x), 
+#                                              by = "1 year"),
+#                minor_breaks = function(x) seq.Date(from = min(x), 
+#                                                    to = max(x), 
+#                                                    by = "6 months"),
+#                date_labels="%Y") +
+#   theme_light() +
+#   labs(x="Date",y="Prevalence (%)",
+#        title = "REACT B-Spline covid-19 prevalence in England")+
+#   theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom",
+#         legend.title=element_blank(),
+#         axis.title.x=element_text(size=10),
+#         strip.background=element_rect(color="white", fill="white"),
+#         strip.text=element_text(color="black", size=10, face="bold"))
+# 
+# plot_regions_prev_smooth
+# 
+# setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/Descriptive_plots")
+# ggsave("plot_regions_prev_smooth.pdf",plot_regions_prev_smooth,device="pdf")
 
 
 
