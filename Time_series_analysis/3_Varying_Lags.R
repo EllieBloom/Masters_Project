@@ -70,7 +70,7 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 ## Mobility - workplace ----------------------------------------------------
 
 
-workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start)
+workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start, date<end_date)
 
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
@@ -82,11 +82,11 @@ workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workp
 
 ## REACT prevalence --------------------------------------------------------
 
-seq(1,nrow(prev_smooth_ts),10)
+# seq(1,nrow(prev_smooth_ts),10)
+# 
+# prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
 
-prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
-
-london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON", d_comb>=REACT_start)
+london_prev_smooth_ts <- prev_smooth_ts %>% filter(region=="LONDON", d_comb>=REACT_start, d_comb<end_date)
 
 # Normalisation
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
@@ -99,7 +99,7 @@ min(london_cases_ts$cases_normalised)
 # Official cases ----------------------------------------------------------
 
 
-london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=REACT_start)
+london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=REACT_start, date<end_date)
 
 
 # Normalisation
@@ -125,18 +125,28 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 start_date <- REACT_start
 end_date <- lockdown_2_start%m+%months(-1)
 
-dtw_lag <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],
-                 london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date])
+mob_series <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],7)
+length(mob_series)
+prev_series <- london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date]
+length(prev_series) # need to remove values from either side to make the same length
+prev_series <- prev_series[4:(length(prev_series)-3)]
+length(prev_series) ==length(mob_series)
+
+date_series <-workplace_ts$date[workplace_ts$date>=REACT_start & workplace_ts$date<end_date]
+date_series <-date_series[4:(length(date_series)-3)]
+length(mob_series)==length(date_series)
+
+dtw_lag <- dtw(mob_series, prev_series)
 
 dtw_lag$distance
-# 64.767 days
+# 40.86139 days
 
 
-dtw_lag_log <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_start & workplace_ts$date<end_date],
-               min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=REACT_start & london_prev_smooth_ts$d_comb<end_date])))
+dtw_lag_log <- dtw(mob_series,
+               min_max_normalise(log(prev_series)))
 
 dtw_lag_log$distance
-# 51 days -> ~ 7 weeks
+# 57 days -> ~ 8 weeks
 
 # Exploring the other ouputs
 names(dtw_lag_log)
@@ -148,6 +158,7 @@ dtw_lag_log$openEnd
 dtw_lag_log$openBegin
 dtw_lag_log$windowFunction()
 dtw_lag_log$jmin
+dtw_lag_log$index1
 dtw_lag_log$index2
 dtw_lag_log$index1==dtw_lag_log$index1s
 dtw_lag_log$index2==dtw_lag_log$index2s
@@ -160,6 +171,90 @@ mean(dtw_lag_log$index1-dtw_lag_log$index2)
 plot(dtw_lag_log$index1,dtw_lag_log$index2,main="Warping function")
 plot(dtw_lag_log, type="alignment",
      main="DTW: simple alignment plot")
+
+
+# Trying a multi-plot
+
+library(tidyverse)
+library(easyGgplot2)
+library(devtools)
+
+str(dtw_lag_log)
+
+plot2<- ggplot()+
+          geom_line(aes(x=date_series,
+                y=mob_series), col="royal blue")+
+          coord_flip()+
+          labs(x="Date",
+               y="Mobility")+
+          theme_minimal()+
+          theme(axis.text.x=element_blank(),
+                  axis.text.y=element_blank())
+plot2
+
+plot1 <- ggplot()+
+        geom_line(aes(date_series,y=prev_series), col="dark green")+
+        labs(x="Date",
+        y="Log prevalence")+
+        theme_minimal()+
+          theme(axis.text.x=element_blank(),
+                axis.text.y=element_blank())
+
+plot1
+
+
+plot3 <- ggplot()+
+            geom_line(aes(x=dtw_lag_log$index2,
+                       y=dtw_lag_log$index1), col="red")+
+            theme_minimal()+
+            theme(axis.text.x=element_blank(),
+                axis.text.y=element_blank())+
+            labs(x="Prevalence index",y="Mobility index")
+            
+plot3
+
+ggplot2.multiplot("",plot1,plot2,plot3, cols=2)
+
+
+##Attempting another type of plot
+
+mob_series <- as.data.frame(mob_series)
+colnames(mob_series)<-"series"
+mob_series$type <- "mobility"
+mob_series <- cbind(mob_series,date_series)
+
+prev_series <- as.data.frame(prev_series)
+colnames(prev_series)<-"series"
+prev_series$type <- "prev"
+prev_series <- cbind(prev_series,date_series)
+
+
+data_plot<- rbind(mob_series,prev_series)
+data_plot <- as.data.frame(data_plot)
+data_plot$type <- as.factor(data_plot$type)
+
+ggplot(data=data_plot,aes(x=date_series,y=series, color=type))+
+  geom_line()+
+  geom_line(aes(group=paired))
+
+# Can't get this to work - exporting the data to use in python instead
+
+data_plot 
+dtw_indices <- cbind(dtw_lag_log$index1,dtw_lag_log$index2)
+colnames(dtw_indices) <- c("mob_index","prev_index")
+dtw_indices <- as.data.frame(dtw_indices)
+
+
+
+setwd("~/Desktop/Masters/Project/Analysis/Time_series_analysis/DTW_data_plots")
+write_csv(dtw_indices, "dtw_indices.csv")
+write_csv(prev_series, "prev_series.csv")
+write_csv(mob_series, "mob_series.csv")
+
+
+
+
+
 
 
 
@@ -316,13 +411,8 @@ mean(dtw_results_6months_log$dtw_lag)
 
 
 
-# 4 month window between start and end date -------------------------------
 
-# start_date <- REACT_start
-# end_date <- lockdown_2_start%m+%months(-1)
-
-start_date
-end_date
+# Could do the same thing but for increasing lengths like with CCF
 
 
 
@@ -330,9 +420,11 @@ end_date
 
 
 
-# Do I need to pass the ARIMA model through instead? How
-# Do I fully understand what the distance measure is? Is it definitely number of days??
-# It may be that CCF is easier to inerpret (but DTW is probably better??)
+
+
+
+
+
 
 
 # CCF  - prev vs mobility  ------------------------------------------------
@@ -379,7 +471,7 @@ ccf_prev_mobility %>% filter(lag>=0) %>%
   labs(x="Lag (weeks)", y="CCF",
        subtitle="Start of REACT to 1 month before end of lockdown 2")+
   xlim(0,200/7)+
-  scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
+  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
   ggtitle("Cross correlation function (CCF) for workplace mobility and prevalence London")+
   theme_light()
 
@@ -518,6 +610,10 @@ ccf_combined_results_6months_log %>%
        subtitle="Log(prevalence) vs rolling av(mobility)") +
   ggtitle("CCF Lag over varying 6 month windows")+
   theme_light()
+
+
+
+
 
 
 
