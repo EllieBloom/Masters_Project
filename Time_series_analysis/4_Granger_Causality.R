@@ -135,33 +135,35 @@ length(mobility_test)
 length(prev_test)==length(mobility_test)
 
 # Using lag from static DTW
-granger_test_mob_prev <- grangertest(prev_test~mobility_test, order=dtw_lag) #,singular.ok=TRUE
+granger_test_mob_prev <- grangertest(mobility_test,prev_test~ order=40) #,singular.ok=TRUE
 granger_test_mob_prev 
 # p>0.05 -> mobility not useful in forecasting cases
 # p<0.05 -> mobility useful in forecasting cases
 
 
-# Range of significant lags -----------------------------------------------
+## Range of significant lags -----------------------------------------------
 
-sig_lags<-read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags/ccf_prev_mobility_log_sig_lags.csv")
-sig_lags
-
-min_lag<-min(sig_lags$lag)
-min_lag
-max_lag<-max(sig_lags$lag)
-max_lag
-
-n_lags <- max_lag-min_lag
-n_lags
+# sig_lags<-read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags/ccf_prev_mobility_log_sig_lags.csv")
+# sig_lags
+# 
+# sig_lags$lag[which.max(sig_lags$acf)]
+# 
+# min_lag<-min(sig_lags$lag)
+# min_lag
+# max_lag<-max(sig_lags$lag)
+# max_lag
+# 
+# n_lags <- max_lag-min_lag
+# n_lags
 
 start_date_prev <- REACT_start
 start_date_prev
 end_date_prev <- lockdown_2_start%m+%months(-1)
 end_date_prev
 
-start_date_mobility <- start_date_prev%m+%days(min_lag)
+start_date_mobility <- start_date_prev%m+%days(dtw_lag)
 start_date_mobility 
-end_date_mobility <- end_date_prev%m+%days(min_lag)
+end_date_mobility <- end_date_prev%m+%days(dtw_lag)
 end_date_mobility
 
 
@@ -177,11 +179,55 @@ length(prev_test_range)==length(mobility_test_range)
 
 
 # Using lag from static DTW
-granger_test_mob_prev <- grangertest(prev_test_range,mobility_test_range, order=n_lags) 
+# Works with 1 - significant too
+granger_test_mob_prev <- grangertest(mobility_test_range,prev_test_range, order=1) 
 granger_test_mob_prev 
+# This works -> VAR(1) is useful with a DTW lag of 51
+
+
+
+
+# Could try shifting to the max lag instead
 # p>0.05 -> mobility not useful in forecasting cases
 # p<0.05 -> mobility useful in forecasting cases
 
 # Can maybe combined VARIMA and Granger Causality test...
-https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
+#https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
 
+
+
+
+
+## Shifting just by the significant lag------------------------------------------
+# 
+# 
+# start_date_prev <- REACT_start
+# start_date_prev
+# end_date_prev <- lockdown_2_start%m+%months(-1)
+# end_date_prev
+# 
+# start_date_mobility <- start_date_prev%m+%days(83)
+# start_date_mobility 
+# end_date_mobility <- end_date_prev%m+%days(83)
+# end_date_mobility
+# 
+# 
+# prev_test_range <- min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date_prev & london_prev_smooth_ts$d_comb<end_date_prev]))
+# length(prev_test_range)
+# prev_test_range <- prev_test_range[4:(length(prev_test_range)-3)] #needed because rollmean takes of values off either side
+# length(prev_test_range)
+# mobility_test_range <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date_mobility & workplace_ts$date<end_date_mobility],7)
+# length(mobility_test_range)
+# # Check same lengths
+# length(prev_test_range)==length(mobility_test_range)
+# 
+# 
+# 
+# # Using lag from static DTW
+# # Works with 1 - significant too
+# granger_test_mob_prev <- grangertest(prev_test_range,mobility_test_range, order=1) 
+# granger_test_mob_prev 
+# Significant in this case...
+
+
+# Could try e.g. where CCF>0.5? 

@@ -11,6 +11,7 @@ library(tidyverse)
 library(astsa) # Time series package used in datacamp course
 library(lubridate) # Using to add months to date
 library(lmtest) # For granger causality test
+library(dtw)
 
 # Functions
 
@@ -117,6 +118,10 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 
 # Dynamic Time warping  - prev vs mobility -------------------------------------
 
+
+## Static example ----------------------------------------------------------
+
+
 start_date <- REACT_start
 end_date <- lockdown_2_start%m+%months(-1)
 
@@ -132,6 +137,31 @@ dtw_lag_log <- dtw(workplace_ts$mobility_normalised[workplace_ts$date>=REACT_sta
 
 dtw_lag_log$distance
 # 51 days -> ~ 7 weeks
+
+# Exploring the other ouputs
+names(dtw_lag_log)
+dtw_lag_log$stepPattern
+dtw_lag_log$N
+dtw_lag_log$M
+dtw_lag_log$call
+dtw_lag_log$openEnd
+dtw_lag_log$openBegin
+dtw_lag_log$windowFunction()
+dtw_lag_log$jmin
+dtw_lag_log$index2
+dtw_lag_log$index1==dtw_lag_log$index1s
+dtw_lag_log$index2==dtw_lag_log$index2s
+dtw_lag_log$index2s
+dtw_lag_log$stepsTaken
+dtw_lag_log$normalizedDistance
+
+mean(dtw_lag_log$index1-dtw_lag_log$index2)
+
+plot(dtw_lag_log$index1,dtw_lag_log$index2,main="Warping function")
+plot(dtw_lag_log, type="alignment",
+     main="DTW: simple alignment plot")
+
+
 
 ## 4-months moving window --------------------------------------------------
 
