@@ -70,7 +70,7 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 ## Mobility - workplace ----------------------------------------------------
 
 
-workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start, date<end_date)
+workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces",date>=REACT_start) # Changed so that no end date
 
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
@@ -86,7 +86,7 @@ workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workp
 # 
 # prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
 
-london_prev_smooth_ts <- prev_smooth_ts %>% filter(region=="LONDON", d_comb>=REACT_start, d_comb<end_date)
+london_prev_smooth_ts <- prev_smooth_ts %>% filter(region=="LONDON", d_comb>=REACT_start) # changed so that no end date
 
 # Normalisation
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
@@ -99,7 +99,7 @@ min(london_cases_ts$cases_normalised)
 # Official cases ----------------------------------------------------------
 
 
-london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=REACT_start, date<end_date)
+london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=REACT_start) # changed so that no end date
 
 
 # Normalisation
@@ -146,6 +146,7 @@ dtw_lag_log <- dtw(mob_series,
                min_max_normalise(log(prev_series)))
 
 dtw_lag_log$distance
+# 56.02336 days
 # 57 days -> ~ 8 weeks
 
 # Exploring the other ouputs
@@ -213,8 +214,9 @@ plot3 <- ggplot()+
             
 plot3
 
-ggplot2.multiplot("",plot1,plot2,plot3, cols=2)
+dtw_multiplot <- ggplot2.multiplot("",plot1,plot2,plot3, cols=2)
 
+dtw_multiplot
 
 ##Attempting another type of plot
 
@@ -318,15 +320,19 @@ dtw_results_6months <- as.data.frame(dtw_results_6months)
 dtw_results_6months$start_date <- as.Date(dtw_results_6months$start_date)
 dtw_results_6months$end_date <- as.Date(dtw_results_6months$end_date)
 
-dtw_results_6months %>%
-  ggplot(aes(x=start_date,y=dtw_lag/7))+
-  geom_smooth(se=FALSE)+
-  geom_line()+
-  labs(y="Dynamic Time Warping lag (Weeks)",
-       x="Start date of 6 month window",
-       subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
-  ggtitle("Dynamic Time Warping Lag over varying 6 month windows")+
-  theme_light()
+plot_dtw_6months_notlogged<- dtw_results_6months %>%
+                      ggplot(aes(x=start_date,y=dtw_lag/7))+
+                      geom_smooth(se=FALSE)+
+                      geom_line()+
+                      labs(y="Dynamic Time Warping lag (Weeks)",
+                           x="Start date of 6 month window",
+                           subtitle="Prevalence vs rolling av(mobility) - 1 week movements") +
+                      ggtitle("Dynamic Time Warping Lag over varying 6 month windows")+
+                      theme_light()
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(dtw_results_6months,"dt_4months_notlogged.csv")
+ggsave("plot_dtw_6months_notlogged.pdf",plot_dtw_6months_notlogged)
 
 
 ## Logging - 4 month window ----------------------------------------------
@@ -353,7 +359,7 @@ dtw_results_4months_log$start_date <- as.Date(dtw_results_4months_log$start_date
 dtw_results_4months_log$end_date <- as.Date(dtw_results_4months_log$end_date)
 
 
-dtw_results_4months_log %>%
+plot_dtw_4months_logged <- dtw_results_4months_log %>%
   ggplot(aes(x=start_date,y=dtw_lag/7))+
   geom_line()+
   geom_smooth(se=FALSE)+
@@ -366,6 +372,9 @@ dtw_results_4months_log %>%
 # Jumpy but around a mean
 mean(dtw_results_4months_log$dtw_lag)
 
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(dtw_results_4months_log,"dt_4months_logged.csv")
+ggsave("plot_dtw_4months_notlogged.pdf",plot_dtw_4months_logged)
 
 
 
@@ -396,7 +405,7 @@ dtw_results_6months_log$start_date <- as.Date(dtw_results_6months_log$start_date
 dtw_results_6months_log$end_date <- as.Date(dtw_results_6months_log$end_date)
 
 
-dtw_results_6months_log %>%
+plot_dtw_6months_logged <- dtw_results_6months_log %>%
   ggplot(aes(x=start_date,y=dtw_lag/(7)))+
   geom_line()+
   geom_smooth(se=FALSE)+
@@ -410,21 +419,14 @@ dtw_results_6months_log %>%
 mean(dtw_results_6months_log$dtw_lag)
 
 
-
-
-# Could do the same thing but for increasing lengths like with CCF
-
-
-
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(dtw_results_6months_log,"dt_6months_logged.csv")
+ggsave("plot_dtw_6months_notlogged.pdf",plot_dtw_6months_logged)
 
 
 
 
-
-
-
-
-
+#
 
 
 # CCF  - prev vs mobility  ------------------------------------------------
@@ -435,14 +437,22 @@ mean(dtw_results_6months_log$dtw_lag)
 
 lag_max=200
 
-ccf_prev_mobility <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date],
-                    rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
-                    lag.max=lag_max,na.action=na.pass)
+# ccf_prev_mobility <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date],
+#                     rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
+#                     lag.max=lag_max,na.action=na.pass)
 
+
+prev_series <-(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])
+prev_series <- prev_series[4:(length(prev_series)-3)]
+mob_series  <-rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)
+ccf_prev_mobility <- ccf(prev_series, mob_series,
+                    lag.max=lag_max,na.action=na.pass)
 
 
 ccf_prev_mobility <- as.data.frame(cbind(ccf_prev_mobility$acf,ccf_prev_mobility$lag))
 colnames(ccf_prev_mobility)[1:2]<-c("acf","lag")
+
+max(ccf_prev_mobility$lag)
 
 ccf_prev_mobility$lag[which.max(ccf_prev_mobility$acf)]
 # Max CCF is 48! -> pretty long ~ 7 weeks
@@ -451,7 +461,6 @@ ccf_prev_mobility$lag[which.max(ccf_prev_mobility$acf)]
 n <- nrow(london_cases_ts)
 k <- seq(1,200,1)
 
-ccf_norm$n <- nrow(london_cases_ts)
 
 ccf_prev_mobility <- ccf_prev_mobility %>% 
   mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-lag))) %>%
@@ -470,11 +479,15 @@ ccf_prev_mobility %>% filter(lag>=0) %>%
   #ylim(-0.2,0.4) +
   labs(x="Lag (weeks)", y="CCF",
        subtitle="Start of REACT to 1 month before end of lockdown 2")+
-  xlim(0,200/7)+
+  xlim(0,144/7)+
   #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
   ggtitle("Cross correlation function (CCF) for workplace mobility and prevalence London")+
   theme_light()
 
+
+which.max(ccf_prev_mobility$acf)
+ccf_prev_mobility$lag[which.max(ccf_prev_mobility$acf)]
+# 48 days is max
 
 ## One time period -  logged  -----------------------------------------------
 
@@ -482,6 +495,13 @@ lag_max=200
 
 ccf_prev_mobility_log <- ccf(min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])),
                          rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
+                         lag.max=lag_max,na.action=na.pass)
+
+
+prev_series_log <-normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
+prev_series_log <- prev_series[4:(length(prev_series)-3)]
+mob_series  <-rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)
+ccf_prev_mobility_log <- ccf(prev_series_log, mob_series,
                          lag.max=lag_max,na.action=na.pass)
 
 
@@ -520,6 +540,15 @@ ccf_prev_mobility_log %>% filter(lag>=0) %>%
   ggtitle("Cross correlation function (CCF) for workplace mobility and log(prevalence)")+
   theme_light()
 
+
+# Max lag
+
+which.max(ccf_prev_mobility_log$acf)
+ccf_prev_mobility_log$lag[which.max(ccf_prev_mobility_log$acf)]
+# 42 days is max
+
+
+
 # Find all of the lags which are significant!
 
 ccf_prev_mobility_log_sig_lags <-
@@ -528,6 +557,16 @@ ccf_prev_mobility_log_sig_lags <-
 
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
 write.csv(ccf_prev_mobility_log_sig_lags,"ccf_prev_mobility_log_sig_lags.csv")
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -561,7 +600,7 @@ ccf_combined_results_6months$end_date <- as.Date(ccf_combined_results_6months$en
 
 ccf_combined_results_6months
 
-ccf_combined_results_6months %>%
+plot_ccf_6months_notlogged<- ccf_combined_results_6months %>%
   ggplot(aes(x=start_date,y=ccf_max_lag/7))+
   geom_smooth(se=FALSE)+
   geom_line()+
@@ -570,6 +609,15 @@ ccf_combined_results_6months %>%
        subtitle="Prevalence vs rolling av(mobility)") +
   ggtitle("CCF Lag over varying 6 month windows")+
   theme_light()
+
+plot_ccf_6months_notlogged
+
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(ccf_combined_results_6months,"ccf_6months_notlogged.csv")
+ggsave("plot_ccf_6months_notlogged.pdf",plot_ccf_6months_notlogged)
+
+
 
 ## 6-month moving window - logged------------------------------------------------
 
@@ -601,18 +649,20 @@ ccf_combined_results_6months_log$end_date <- as.Date(ccf_combined_results_6month
 
 ccf_combined_results_6months_log
 
-ccf_combined_results_6months_log %>%
-  ggplot(aes(x=start_date,y=ccf_max_lag/7))+
-  geom_smooth(se=FALSE)+
-  geom_line()+
-  labs(y="CCF lag (Weeks)",
-       x="Start date of 6 month window",
-       subtitle="Log(prevalence) vs rolling av(mobility)") +
-  ggtitle("CCF Lag over varying 6 month windows")+
-  theme_light()
+plot_ccf_6months_logged<- ccf_combined_results_6months_log %>%
+                          ggplot(aes(x=start_date,y=ccf_max_lag/7))+
+                          geom_smooth(se=FALSE)+
+                          geom_line()+
+                          labs(y="CCF lag (Weeks)",
+                               x="Start date of 6 month window",
+                               subtitle="Log(prevalence) vs rolling av(mobility)") +
+                          ggtitle("CCF Lag over varying 6 month windows")+
+                          theme_light()
 
 
-
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(ccf_combined_results_6months_log,"ccf_6months_logged.csv")
+ggsave("plot_ccf_6months_logged.pdf",plot_ccf_6months_logged)
 
 
 

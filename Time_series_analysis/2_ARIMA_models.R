@@ -10,6 +10,7 @@ library(tidyverse)
 library(astsa) # Time series package used in datacamp course
 library(lubridate)
 library(zoo)
+library(fable) # For auto ARIMA I think
 
 
 # Defining min max function
@@ -68,26 +69,42 @@ end_date <- lockdown_2_start%m+%months(-1) # Make it the month before the start 
 
 
 
+
 ## Workplace mobility ------------------------------------------------------
 
-workplace_ts <- mobility_ts %>% filter(region=="LONDON", date>=start_date, date<end_date,type_mobility=="workplaces")
+
+### Getting data ready ------------------------------------------------------
+
+# Data normalised including forecasting period
+workplace_ts_all <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces", date<lockdown_2_start)
+
+# Need to use min max scaling to bring all values between 0 and 1 so that they can be logged
+
+workplace_ts_all$mobility_normalised <- min_max_normalise(workplace_ts_all$mobility)
+summary(workplace_ts_all$mobility_normalised)
+
+# Change any 0s to the non-zero miniumum
+workplace_ts_all$mobility_normalised[workplace_ts_all$mobility_normalised==0]<-min(workplace_ts_all$mobility_normalised[workplace_ts_all$mobility_normalised!=0])
+min(workplace_ts_all$mobility_normalised) 
+
+
+# Now filter to the desired date
+workplace_ts <- workplace_ts_all %>% filter(date>=start_date, date<end_date)
 
 ggplot(data=workplace_ts, aes(x=date,y=mobility)) +
   geom_line(color="royal blue") + 
   ggtitle("Workplace mobility in London")+
   labs(y="Mobility change from baseline (%)",
        x="Date (2020)",
-         subtitle="Start of REACT to 1 month before end of lockdown 2")+
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
 
-# Need to use min max scaling to bring all values between 0 and 1 so that they can be logged
 
-workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
-summary(workplace_ts$mobility_normalised)
 
-# Change any 0s to the non-zero miniumum
-workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised!=0])
-min(workplace_ts$mobility_normalised) 
+
+### Exploring ARIMA ---------------------------------------------------------
+
+
 
 
 # Normalised data
@@ -112,20 +129,24 @@ fit_log <- workplace_ts %>%
 fit_log
  
 # Auto gives
-# p = 1
+# p = 4
 # d = 0
-# q = 1
+# q = 0
 # P = 0
 # D = 1
 # Q = 1
 # S = 7
 
 
-sarima(log(workplace_ts$mobility_normalised),1,0,1,0,1,1,7)
-# AIC 0.8251765
-# BIC 0.925531
 
-# Looks pretty good - there are however heavy tails for redisuals -> not quite normal
+sarima(log(workplace_ts$mobility_normalised),4,0,0,0,1,1,7)
+# AIC: -0.3807216
+# BIC: -0.2402253
+
+# Looks pretty good - there are however heavy tails for redisuals -> not quite normal, also fails on Ljung Box with greater lags
+
+
+
 
 # Could also try without logging and see if it is an improvement
 
@@ -135,17 +156,83 @@ fit <- workplace_ts %>%
 
 fit
 
-sarima(workplace_ts$mobility_normalised,1,0,1,1,1,2,7)
+fit_final <- sarima(workplace_ts$mobility_normalised,2,0,1,0,1,2,7)
+fit_final
 # Better than logged data, especially on Ljung-Box test -> use unlogged for workplace mobility
-# AIC: -3.144342
-# BIC: -3.003846
+# AIC: -3.594837
+# BIC: -3.45434
+
+
+
+### Plotting model/forecasting ------------------------------------------------------
+
+#Using astsa package to get predicted data
+pred_mob=sarima.for(workplace_ts$mobility_normalised,n.ahead=31,2,0,1,0,1,2,7)
+pred_mob
+length(pred_mob$pred)
+
+pred_date<-seq(max(workplace_ts$date)%m+%days(1),max(workplace_ts$date)%m+%days(31),1)
+length(pred_date)
+
+pred_final <-cbind(pred_date,pred_mob$pred)
+colnames(pred_final)<-c("date","mob_pred")
+pred_final <- as.data.frame(pred_final)
+pred_final$date <- as.Date(pred_final$date)
+
+
+# Getting actual data to compare forecast with
+min_date <- min(pred_final$date)
+max_date <- max(pred_final$date)
+
+
+workplace_ts_pred_actual <- workplace_ts_all %>% filter(date>=end_date)
+workplace_ts_pred_actual$date <-as.Date(workplace_ts_pred_actual$date)
+
+
+ggplot() +
+  geom_line(data=workplace_ts, aes(x=date,y=mobility_normalised)) + 
+  geom_line(data=workplace_ts_pred_actual, aes(x=date,y=mobility_normalised), col="light blue")+
+  geom_line(data=pred_final, aes(x=date,y=mob_pred), linetype="dashed", col="red")+
+  ggtitle("Workplace mobility in London")+
+  labs(y="Mobility change from baseline (%)",
+       x="Date (2020)",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
+  theme_light()
+
+# Blue = actual
+# Read = forecast
+
+
+
 
 
 ## Official cases ----------------------------------------------------------
 
-london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=start_date, date<end_date)
 
-summary(london_cases_ts)
+
+### Getting data ready ------------------------------------------------------
+
+
+london_cases_ts_all <- cases_ts %>% filter(region=="LONDON", date>=start_date, date<lockdown_2_start)
+
+summary(london_cases_ts_all)
+
+
+
+# Normalisation prior to cutting off final month
+london_cases_ts_all$cases_normalised <- min_max_normalise(london_cases_ts_all$cases)
+# Check normalisation
+summary(london_cases_ts_all$cases_normalised)
+
+# Change min to be non-zero
+london_cases_ts_all$cases_normalised[london_cases_ts_all$cases_normalised==0]<-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
+min(london_cases_ts_all$cases_normalised) # Check - o
+
+
+
+# Remove the forecasting window
+
+london_cases_ts <- london_cases_ts_all %>% filter(date<end_date)
 
 ggplot(data=london_cases_ts, aes(x=date,y=cases)) +
   geom_line(color="red") + 
@@ -155,15 +242,13 @@ ggplot(data=london_cases_ts, aes(x=date,y=cases)) +
        subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
 
-# Normalisation
 
-london_cases_ts$cases_normalised <- min_max_normalise(london_cases_ts$cases)
-# Check normalisation
-summary(london_cases_ts$cases_normalised)
 
-# Change min to be non-zero
-london_cases_ts$cases_normalised[london_cases_ts$cases_normalised==0]<-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
-min(london_cases_ts$cases_normalised) # Check - ok
+
+
+### Exploring ARIMA ---------------------------------------------------------
+
+
 
 
 # Normalised data
@@ -183,7 +268,7 @@ cases_fit_log <- london_cases_ts %>%
   )
 
 cases_fit_log
-# AIC: 1.130231
+# AIC: 1.130232
 # BIC: 1.190714
 
 sarima(log(london_cases_ts$cases_normalised),0,1,1,0,1,1,7)
@@ -205,15 +290,68 @@ sarima(log(london_cases_ts$cases_normalised),0,1,1,2,1,0,7)
 # Not much different -> not the best models in general, but just about ok?
 
 
+
+
+### Plotting model/forecsating ------------------------------------------------
+
+
+#Using astsa package to get predicted data
+pred_cases=sarima.for(log(london_cases_ts$cases_normalised),n.ahead=31,01,1,1,2,1,0,7)
+pred_cases
+length(pred_cases$pred)
+
+pred_final_cases <-cbind(pred_date,pred_cases$pred)
+colnames(pred_final_cases)<-c("date","cases_pred")
+pred_final_cases <- as.data.frame(pred_final_cases)
+pred_final_cases$date <- as.Date(pred_final_cases$date)
+
+
+# Getting actual data to compare forecast with
+
+cases_ts_pred_actual <- london_cases_ts_all %>% filter(date>=end_date)
+cases_ts_pred_actual$date <-as.Date(cases_ts_pred_actual$date)
+
+
+ggplot() +
+  geom_line(data=london_cases_ts, aes(x=date,y=cases_normalised)) + 
+  geom_line(data=cases_ts_pred_actual, aes(x=date,y=cases_normalised), col="light blue")+
+  geom_line(data=pred_final_cases, aes(x=date,y=exp(cases_pred)), linetype="dashed", col="red")+
+  ggtitle("Official cases in London")+
+  labs(y="Cases",
+       x="Date (2020)",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
+  theme_light()
+
+# Blue = actual
+# Read = forecast
+
+
 ## Smoothed prevalence -----------------------------------------------------
 # Currently using data with 10 points per day...
 # Just take every 10th row
+# seq(1,nrow(prev_smooth_ts),10)
+# prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
 
-seq(1,nrow(prev_smooth_ts),10)
 
-prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
+### Getting data ready --------------------------------------------------
 
-london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON", d_comb>=start_date, d_comb<end_date)
+
+
+london_prev_smooth_ts_all <- prev_smooth_ts %>% filter(region=="LONDON", d_comb>=start_date, d_comb<lockdown_2_start)
+
+
+
+# Normalisation
+london_prev_smooth_ts_all$prev_normalised <- min_max_normalise(london_prev_smooth_ts_all$p)
+# Check normalisation
+summary(london_prev_smooth_ts_all$prev_normalised)
+
+london_prev_smooth_ts_all$prev_normalised[london_prev_smooth_ts_all$prev_normalised==0]<-min(london_prev_smooth_ts_all$prev_normalised[london_prev_smooth_ts_all$prev_normalised!=0])
+min(london_prev_smooth_ts_all$prev_normalised) 
+
+# Now restrict the date
+london_prev_smooth_ts_all$date <- as.Date(london_prev_smooth_ts_all)
+london_prev_smooth_ts <- london_prev_smooth_ts_all %>% filter(d_comb<end_date)
 
 ggplot(data=london_prev_smooth_ts, aes(x=d_comb,y=p)) +
   geom_line(color="dark green") + 
@@ -223,13 +361,10 @@ ggplot(data=london_prev_smooth_ts, aes(x=d_comb,y=p)) +
        subtitle="Start of REACT to 1 month before end of lockdown 2")+
   theme_light()
 
-# Normalisation
-london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
-# Check normalisation
-summary(london_prev_smooth_ts$prev_normalised)
 
-london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$prev_normalised==0]<-min(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$prev_normalised!=0])
-min(london_cases_ts$cases_normalised) 
+
+### Exploring ARIMA ---------------------------------------------------------
+
 
 
 # Normalised data
@@ -256,8 +391,8 @@ prev_smooth_fit <- london_prev_smooth_ts %>%
 prev_smooth_fit
 
 sarima(london_prev_smooth_ts$prev_normalised,4,2,2)
-# AIC: -13.15557
-# BIC: -13.01812
+# AIC: -13.10584
+# BIC: -12.96839
 # Fails on the Ljung-Box test -> NOT stationary
 
 # Try log
@@ -268,9 +403,57 @@ prev_smooth_fit_log <- london_prev_smooth_ts %>%
 prev_smooth_fit_log
 sarima(log(london_prev_smooth_ts$prev_normalised),1,1,1)
 # A lot better!
-# AIC: - 0.03250049
-# BIC: 0.04570094
+# AIC: -0.09708353
+# BIC: -0.01888209
 # Does pretty well on all tests! Definitely better fit logged (despited higher AIC/BIC)
+
+### Plotting model/forecsating ------------------------------------------------
+
+london_prev_smooth_ts_all
+
+#Using astsa package to get predicted data
+pred_prev=sarima.for(log(london_prev_smooth_ts$prev_normalised),n.ahead=31,1,1,1)
+pred_prev
+length(pred_prev$pred)
+
+
+pred_final_prev<-cbind(pred_date,pred_prev$pred)
+colnames(pred_final_prev)<-c("date","prev_pred")
+pred_final_prev <- as.data.frame(pred_final_prev)
+pred_final_prev$date <- as.Date(pred_final_prev$date)
+
+
+# Getting actual data to compare forecast with
+
+prev_ts_pred_actual <- london_prev_smooth_ts_all %>% filter(d_comb>=end_date)
+prev_ts_pred_actual$d_comb <-as.Date(prev_ts_pred_actual$d_comb)
+
+
+ggplot() +
+  geom_line(data=london_prev_smooth_ts, aes(x=d_comb,y=prev_normalised)) + 
+  geom_line(data=prev_ts_pred_actual, aes(x=d_comb,y=prev_normalised), col="light blue")+
+  geom_line(data=pred_final_prev, aes(x=date,y=exp(prev_pred)), linetype="dashed", col="red")+
+  ggtitle("REACT Prevalence in London")+
+  labs(y="Prevalence (%)",
+       x="Date (2020)",
+       subtitle="Start of REACT to 1 month before end of lockdown 2")+
+  theme_light()
+
+# Blue = actual
+# Read = forecast
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
