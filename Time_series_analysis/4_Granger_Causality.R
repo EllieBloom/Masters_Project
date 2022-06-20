@@ -80,16 +80,14 @@ workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workp
 
 ## REACT prevalence --------------------------------------------------------
 
-seq(1,nrow(prev_smooth_ts),10)
 
-prev_smooth_ts_10 <- prev_smooth_ts[seq(1,nrow(prev_smooth_ts),10),]
-
-london_prev_smooth_ts <- prev_smooth_ts_10 %>% filter(region=="LONDON")
+london_prev_smooth_ts <- prev_smooth_ts %>% filter(region=="LONDON")
 
 # Normalisation
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
 summary(london_prev_smooth_ts$prev_normalised)
 
+# Changing the minimum to be non-zero to allow to be logged
 london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$prev_normalised==0]<-min(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$prev_normalised!=0])
 min(london_cases_ts$cases_normalised) 
 
@@ -104,23 +102,23 @@ london_cases_ts <- cases_ts %>% filter(region=="LONDON")
 london_cases_ts$cases_normalised <- min_max_normalise(london_cases_ts$cases)
 summary(london_cases_ts$cases_normalised)
 
+# Changing the minimum to be non-zero to allow to be logged
 min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
 london_cases_ts$cases_normalised[london_cases_ts$cases_normalised==0]<-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
-min(london_cases_ts$cases_normalised) # Looks like this worked
+min(london_cases_ts$cases_normalised) 
 
 
 
 
 
-# Granger causality test --------------------------------------------------
+# Granger causality test - direct to the data------------------------------------
 
 
 ## Single lag --------------------------------------------------------------
 
 
 # From Script: 3_Varying_Lags.R
-dtw_lag <- round(50.59281,0)
-dtw_lag
+dtw_lag <- 28
 
 # https://www.r-bloggers.com/2021/11/granger-causality-test-in-r-with-example/
 #grangertest(x, y, order = 1, na.action = na.omit, ...)
@@ -135,36 +133,65 @@ length(mobility_test)
 length(prev_test)==length(mobility_test)
 
 # Using lag from static DTW
-granger_test_mob_prev <- grangertest(mobility_test,prev_test~ order=40) #,singular.ok=TRUE
+granger_test_mob_prev <- grangertest(mobility_test,prev_test, order=5) #,singular.ok=TRUE
 granger_test_mob_prev 
 # p>0.05 -> mobility not useful in forecasting cases
 # p<0.05 -> mobility useful in forecasting cases
 
 
+# Loop to see if any are significiant using this method...
+
+lags <- seq(5,80,5)
+lags
+n_iter <- length(lags)
+n_iter
+
+granger_test_summary <- NA
+
+
+for (i in 1:n_iter){
+  granger_test <- grangertest(mobility_test,prev_test, order=lags[i])
+  p <- granger_test$`Pr(>F)`[2]
+  lag <- lags[i]
+  results <- c(p,lag)
+  granger_test_summary <- rbind(granger_test_summary,results)
+}
+
+granger_test_summary <- granger_test_summary[-1,]
+granger_test_summary
+# None are significant using this method
+
+
 ## Range of significant lags -----------------------------------------------
 
-# sig_lags<-read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags/ccf_prev_mobility_log_sig_lags.csv")
-# sig_lags
-# 
-# sig_lags$lag[which.max(sig_lags$acf)]
-# 
-# min_lag<-min(sig_lags$lag)
-# min_lag
-# max_lag<-max(sig_lags$lag)
-# max_lag
-# 
-# n_lags <- max_lag-min_lag
-# n_lags
+sig_lags<-read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags/ccf_prev_mobility_log_sig_lags.csv")
+sig_lags
+
+opt_lag <- sig_lags$lag[which.max(sig_lags$acf)]
+opt_lag 
+
+min_lag<-min(sig_lags$lag)
+min_lag
+max_lag<-max(sig_lags$lag)
+max_lag
+ 
+n_lags <- max_lag-min_lag
+n_lags
 
 start_date_prev <- REACT_start
 start_date_prev
 end_date_prev <- lockdown_2_start%m+%months(-1)
 end_date_prev
+difftime(end_date_prev,start_date_prev)
 
-start_date_mobility <- start_date_prev%m+%days(dtw_lag)
+start_date_mobility <- start_date_prev%m+%days(-41)
 start_date_mobility 
-end_date_mobility <- end_date_prev%m+%days(dtw_lag)
+end_date_mobility <- end_date_prev%m+%days(-41)
 end_date_mobility
+difftime(end_date_mobility,start_date_mobility)
+difftime(end_date_prev,start_date_prev)==difftime(end_date_mobility,start_date_mobility)
+
+
 
 
 prev_test_range <- min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date_prev & london_prev_smooth_ts$d_comb<end_date_prev]))
@@ -184,50 +211,44 @@ granger_test_mob_prev <- grangertest(mobility_test_range,prev_test_range, order=
 granger_test_mob_prev 
 # This works -> VAR(1) is useful with a DTW lag of 51
 
-
-
-
-# Could try shifting to the max lag instead
 # p>0.05 -> mobility not useful in forecasting cases
 # p<0.05 -> mobility useful in forecasting cases
 
-# Can maybe combined VARIMA and Granger Causality test...
-#https://towardsdatascience.com/fun-with-arma-var-and-granger-causality-6fdd29d8391c
+# Check for reverse causation
+granger_test_prev_mob <- grangertest(prev_test_range, mobility_test_range,order=10) 
+granger_test_prev_mob 
 
 
 
 
 
-## Shifting just by the significant lag------------------------------------------
+
+# Granger causality - stationary series -----------------------------------
+
+# Not sure how to input a stationary time series as produced in 2_ARIMA_models -> these are models not time-series data?
+
+
+
+
+# Can't really get this working...?
+# 
+# prev_test_stationary <- diff((log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date])))
+# 
+# plot(prev_test_stationary)
+# 
+# library(LSTS)
+# Box.Ljung.Test(prev_test_stationary, lag = 20, main = NULL)
+# # Very much not stationary
 # 
 # 
-# start_date_prev <- REACT_start
-# start_date_prev
-# end_date_prev <- lockdown_2_start%m+%months(-1)
-# end_date_prev
-# 
-# start_date_mobility <- start_date_prev%m+%days(83)
-# start_date_mobility 
-# end_date_mobility <- end_date_prev%m+%days(83)
-# end_date_mobility
+# # What about mobility
 # 
 # 
-# prev_test_range <- min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date_prev & london_prev_smooth_ts$d_comb<end_date_prev]))
-# length(prev_test_range)
-# prev_test_range <- prev_test_range[4:(length(prev_test_range)-3)] #needed because rollmean takes of values off either side
-# length(prev_test_range)
-# mobility_test_range <- rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date_mobility & workplace_ts$date<end_date_mobility],7)
-# length(mobility_test_range)
+# mobility_test_stationary <- diff(diff(rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)))
+# Box.Ljung.Test(mobility_test, lag = 20, main = NULL)
+# # Really doesn't seem to work..always gives zero p values
+# 
+# length(mobility_test)
 # # Check same lengths
-# length(prev_test_range)==length(mobility_test_range)
-# 
-# 
-# 
-# # Using lag from static DTW
-# # Works with 1 - significant too
-# granger_test_mob_prev <- grangertest(prev_test_range,mobility_test_range, order=1) 
-# granger_test_mob_prev 
-# Significant in this case...
+# length(prev_test)==length(mobility_test)
 
-
-# Could try e.g. where CCF>0.5? 

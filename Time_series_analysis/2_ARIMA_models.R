@@ -191,7 +191,7 @@ workplace_ts_pred_actual$date <-as.Date(workplace_ts_pred_actual$date)
 
 ggplot() +
   geom_line(data=workplace_ts, aes(x=date,y=mobility_normalised)) + 
-  geom_line(data=workplace_ts_pred_actual, aes(x=date,y=mobility_normalised), col="light blue")+
+  geom_line(data=workplace_ts_pred_actual, aes(x=date,y=mobility_normalised), col="blue")+
   geom_line(data=pred_final, aes(x=date,y=mob_pred), linetype="dashed", col="red")+
   ggtitle("Workplace mobility in London")+
   labs(y="Mobility change from baseline (%)",
@@ -314,7 +314,7 @@ cases_ts_pred_actual$date <-as.Date(cases_ts_pred_actual$date)
 
 ggplot() +
   geom_line(data=london_cases_ts, aes(x=date,y=cases_normalised)) + 
-  geom_line(data=cases_ts_pred_actual, aes(x=date,y=cases_normalised), col="light blue")+
+  geom_line(data=cases_ts_pred_actual, aes(x=date,y=cases_normalised), col="blue")+
   geom_line(data=pred_final_cases, aes(x=date,y=exp(cases_pred)), linetype="dashed", col="red")+
   ggtitle("Official cases in London")+
   labs(y="Cases",
@@ -372,13 +372,13 @@ tsplot(london_prev_smooth_ts$prev_normalised)
 # Log normalised (to reduce increasing variance)
 tsplot(log(london_prev_smooth_ts$prev_normalised))
 # Non-seasonal differenced - not logged
-tsplot(diff(london_prev_smooth_ts$prev_normalised,lag=10))
+tsplot(diff(london_prev_smooth_ts$prev_normalised))
 # Second difference...
-tsplot(diff(diff(london_prev_smooth_ts$prev_normalised,lag=10),lag=10))
+tsplot(diff(diff(london_prev_smooth_ts$prev_normalised)))
 # Third difference - starting to look a lot better
-tsplot(diff(diff(diff(london_prev_smooth_ts$prev_normalised,lag=10),lag=10)),lag=10)
+tsplot(diff(diff(diff(london_prev_smooth_ts$prev_normalised))),)
 # Add a log back in...
-tsplot(diff(diff(diff(log(london_prev_smooth_ts$prev_normalised),lag=10),lag=10)),lag=10)
+tsplot(diff(diff(diff(log(london_prev_smooth_ts$prev_normalised)))))
 # Doesn't look good...
 
 # Try auto ARIMA
@@ -431,7 +431,7 @@ prev_ts_pred_actual$d_comb <-as.Date(prev_ts_pred_actual$d_comb)
 
 ggplot() +
   geom_line(data=london_prev_smooth_ts, aes(x=d_comb,y=prev_normalised)) + 
-  geom_line(data=prev_ts_pred_actual, aes(x=d_comb,y=prev_normalised), col="light blue")+
+  geom_line(data=prev_ts_pred_actual, aes(x=d_comb,y=prev_normalised), col="blue")+
   geom_line(data=pred_final_prev, aes(x=date,y=exp(prev_pred)), linetype="dashed", col="red")+
   ggtitle("REACT Prevalence in London")+
   labs(y="Prevalence (%)",

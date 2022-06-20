@@ -112,23 +112,6 @@ min(london_cases_ts$cases_normalised) # Looks like this worked
 
 difftime(lockdown_2_start, REACT_start) #188 days
 
-# First 60 day window
-
-# lag_max=60
-# 
-# start_date <- REACT_start
-# end_date <- REACT_start %m+% days(lag_max)
-# 
-# ccf_60 <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date],
-#                          rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
-#                          lag.max=lag_max,na.action=na.pass)
-# 
-# 
-# 
-# ccf_60 <- as.data.frame(cbind(ccf_prev_mobility$acf,ccf_prev_mobility$lag))
-# colnames(ccf_prev_mobility)[1:2]<-c("acf","lag")
-
-
 # Do it as a loop
 
 lags <-c(60,80,100,120,140,160,180)
@@ -138,14 +121,16 @@ n_iter <- length(lags)
 ccf_interval_summary <- NA
 
 
+
 for (i in 1:n_iter){
 lag<-lags[i]
 start_date <- REACT_start
 end_date <-  REACT_start %m+% days(lag)
-ccf <- ccf(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date],
-              rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7),
+prev_series <-min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
+prev_series <- prev_series[4:(length(prev_series)-3)]
+mob_series  <-rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)
+ccf <- ccf(prev_series, mob_series,
               lag.max=lag,na.action=na.pass)
-
 ccf <- as.data.frame(cbind(ccf$acf,ccf$lag))
 colnames(ccf)[1:2]<-c("acf","lag")
 ccf$interval <- lag
@@ -159,14 +144,77 @@ ccf_interval_summary$interval <- as.factor(ccf_interval_summary$interval)
 library(RColorBrewer)
 myColors <- brewer.pal(7,"RdBu")
 names(myColors) <- levels(ccf_interval_summary$interval)
-colScale <- scale_colour_manual(name = "interval",values = myColors)
+colScale <- scale_colour_manual(name = "Interval length (days)",values = myColors)
 
 # Use viridis maybe? https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html
 
-plot <- ccf_interval_summary %>% filter(lag>=0) %>%
-  ggplot(aes(x=lag/7, y=acf, color=interval))+
+plot_ccf_varying_interval <- ccf_interval_summary %>% filter(lag>=0, lag<=100) %>%
+  ggplot(aes(x=lag, y=acf, color=interval))+
   geom_line() +
-  theme_light()
+  labs(x="Lag (days)",
+       y="CCF",
+       subtitle="Workplace mobility vs log(prevalence) - start 1st May 2020")+
+  ggtitle("CCF plots in London with varying lengths of time interval")+
+  theme_light()+
+  theme()
 
-plot + colScale
+plot_ccf_varying_interval
 
+plot_ccf_varying_interval_final <-plot_ccf_varying_interval + colScale
+plot_ccf_varying_interval_final
+
+
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(ccf_interval_summary,"ccf_interval_summary.csv")
+ggsave("plot_ccf_varying_interval.pdf",plot_ccf_varying_interval_final)
+
+
+
+# DTW with varying length, but same start date ----------------------------
+
+
+difftime(lockdown_2_start, REACT_start) #188 days
+
+# Do it as a loop
+
+lags <-seq(63,182,7)
+
+n_iter <- length(lags)
+
+dtw_interval_summary <- NA
+
+i=1
+
+for (i in 1:n_iter){
+  lag<-lags[i]
+  start_date <- REACT_start
+  end_date <-  REACT_start %m+% days(lag)
+  prev_series <-min_max_normalise(log(london_prev_smooth_ts$prev_normalised[london_prev_smooth_ts$d_comb>=start_date & london_prev_smooth_ts$d_comb<end_date]))
+  prev_series <- prev_series[4:(length(prev_series)-3)]
+  mob_series  <-rollmean(workplace_ts$mobility_normalised[workplace_ts$date>=start_date & workplace_ts$date<end_date],7)
+  dtw <- dtw(mob_series, prev_series)
+  distance <- dtw$distance
+  summary <- cbind(lag,distance)
+  dtw_interval_summary <- rbind(dtw_interval_summary,summary)
+
+}
+
+dtw_interval_summary <- dtw_interval_summary[-1,]
+
+colnames(dtw_interval_summary) <- c("interval_length","dtw_distance")
+dtw_interval_summary <- as.data.frame(dtw_interval_summary)
+
+
+plot_dtw_varying_interval <- ggplot(data=dtw_interval_summary,aes(x=interval_length/7,y=dtw_distance/7))+
+                              geom_point() + 
+                              labs(x="Interval length (weeks)",
+                                   y="DTW lag (weeks)")+
+                              theme_light() +
+                              ggtitle("DTW lag with varying interval length starting 1st May 2020")+
+                              geom_smooth(se=FALSE)
+
+
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Time_series_analysis/Ouputs/Lags")
+write.csv(dtw_interval_summary,"dtw_interval_summary.csv")
+ggsave("plot_dtw_varying_interval.pdf",plot_dtw_varying_interval)
