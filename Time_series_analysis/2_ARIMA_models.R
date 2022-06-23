@@ -78,10 +78,21 @@ end_date <- lockdown_2_start%m+%months(-1) # Make it the month before the start 
 # Data normalised including forecasting period
 workplace_ts_all <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces", date<lockdown_2_start)
 
+
+min_workplace <- min(workplace_ts_all$mobility)
+min_workplace #-87
+max_workplace <- max(workplace_ts_all$mobility)
+max_workplace # 1
+
+
+
 # Need to use min max scaling to bring all values between 0 and 1 so that they can be logged
 
 workplace_ts_all$mobility_normalised <- min_max_normalise(workplace_ts_all$mobility)
 summary(workplace_ts_all$mobility_normalised)
+
+
+
 
 # Change any 0s to the non-zero miniumum
 workplace_ts_all$mobility_normalised[workplace_ts_all$mobility_normalised==0]<-min(workplace_ts_all$mobility_normalised[workplace_ts_all$mobility_normalised!=0])
@@ -104,17 +115,45 @@ ggplot(data=workplace_ts, aes(x=date,y=mobility)) +
 
 ### Exploring ARIMA ---------------------------------------------------------
 
+# For Ljung Box test
+library(stats)
+# H0: data are independently distributed
+# H1: data are not independtly distributed; they exhibit serial correlation
 
+Box.test(london_cases_ts$cases_normalised, lag = 20, type = "Ljung")
 
 
 # Normalised data
 tsplot(workplace_ts$mobility_normalised)
+Box.test(workplace_ts$mobility_normalised, lag = 20, type = "Ljung")
+# p< 0.05 -> not stationary
+sarima(workplace_ts$mobility_normalised,0,0,0,0,0,0,7)
+
 # Log normalised (to reduce increasing variance)
 tsplot(log(workplace_ts$mobility_normalised))
+Box.test(log(workplace_ts$mobility_normalised), lag = 20, type = "Ljung")
+# p< 0.05 -> not stationary
+sarima(log(workplace_ts$mobility_normalised),0,0,0,0,0,0,7)
+
 # Non-seasonal differenced log data
 tsplot(diff(log(workplace_ts$mobility_normalised)))
+Box.test(diff(log(workplace_ts$mobility_normalised)), lag = 20, type = "Ljung")
+# p< 0.05 -> not stationary
+sarima(log(workplace_ts$mobility_normalised),0,2,0,0,0,0,7)
+
 # Additional weekly seasonal differencing
 tsplot(diff(diff(log(workplace_ts$mobility_normalised),lag=7)))
+Box.test(diff(diff(log(workplace_ts$mobility_normalised),lag=7)), lag = 20, type = "Ljung")
+# p< 0.05 -> not stationary
+sarima(log(workplace_ts$mobility_normalised),0,1,0,0,1,0,7)
+
+# Only seasonal differencing
+tsplot(diff(workplace_ts$mobility_normalised,lag=7))
+Box.test(diff(workplace_ts$mobility_normalised,lag=7), lag = 20, type = "Ljung")
+# p< 0.05 -> not stationary
+sarima(workplace_ts$mobility_normalised,0,0,0,0,1,0,7)
+
+
 
 # Creating log dd data to use later
 mobility_normalised_log_dd <- diff(diff(log(workplace_ts$mobility_normalised),lag=7))
@@ -188,11 +227,15 @@ max_date <- max(pred_final$date)
 workplace_ts_pred_actual <- workplace_ts_all %>% filter(date>=end_date)
 workplace_ts_pred_actual$date <-as.Date(workplace_ts_pred_actual$date)
 
+# Plot, converted back to original scale...
 
 ggplot() +
-  geom_line(data=workplace_ts, aes(x=date,y=mobility_normalised)) + 
-  geom_line(data=workplace_ts_pred_actual, aes(x=date,y=mobility_normalised), col="blue")+
-  geom_line(data=pred_final, aes(x=date,y=mob_pred), linetype="dashed", col="red")+
+  geom_line(data=workplace_ts, aes(x=date,
+                                   y=(mobility_normalised*(max_workplace-min_workplace)+min_workplace))) + 
+  geom_line(data=workplace_ts_pred_actual, aes(x=date,
+                                               y=(mobility_normalised*(max_workplace-min_workplace)+min_workplace)), col="blue")+
+  geom_line(data=pred_final, aes(x=date,
+                                 y=(mob_pred*(max_workplace-min_workplace)+min_workplace)), linetype="dashed", col="red")+
   ggtitle("Workplace mobility in London")+
   labs(y="Mobility change from baseline (%)",
        x="Date (2020)",
@@ -218,6 +261,11 @@ london_cases_ts_all <- cases_ts %>% filter(region=="LONDON", date>=start_date, d
 summary(london_cases_ts_all)
 
 
+min_cases <- min(london_cases_ts_all$cases)
+min_cases #20
+max_cases <- max(london_cases_ts_all$cases)
+max_cases # 2965
+
 
 # Normalisation prior to cutting off final month
 london_cases_ts_all$cases_normalised <- min_max_normalise(london_cases_ts_all$cases)
@@ -225,7 +273,7 @@ london_cases_ts_all$cases_normalised <- min_max_normalise(london_cases_ts_all$ca
 summary(london_cases_ts_all$cases_normalised)
 
 # Change min to be non-zero
-london_cases_ts_all$cases_normalised[london_cases_ts_all$cases_normalised==0]<-min(london_cases_ts$cases_normalised[london_cases_ts$cases_normalised!=0])
+london_cases_ts_all$cases_normalised[london_cases_ts_all$cases_normalised==0]<-min(london_cases_ts_all$cases_normalised[london_cases_ts_all$cases_normalised!=0])
 min(london_cases_ts_all$cases_normalised) # Check - o
 
 
@@ -248,17 +296,38 @@ ggplot(data=london_cases_ts, aes(x=date,y=cases)) +
 
 ### Exploring ARIMA ---------------------------------------------------------
 
-
+# For Ljung Box test
+library(stats)
+# H0: data are independently distributed
+# H1: data are not independtly distributed; they exhibit serial correlation
 
 
 # Normalised data
 tsplot(london_cases_ts$cases_normalised)
+Box.test(london_cases_ts$cases_normalised, lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
 # Log normalised (to reduce increasing variance)
 tsplot(log(london_cases_ts$cases_normalised))
+Box.test(log(london_cases_ts$cases_normalised), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
 # Non-seasonal differenced log data
 tsplot(diff(log(london_cases_ts$cases_normalised)))
+Box.test(diff(log(london_cases_ts$cases_normalised)), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
+
 # Additional weekly seasonal differencing
 tsplot(diff(diff(log(london_cases_ts$cases_normalised),lag=7)))
+Box.test(diff(diff(log(london_cases_ts$cases_normalised),lag=7)), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
+# Only a seasonal difference
+tsplot(diff(log(london_cases_ts$cases_normalised),lag=7))
+Box.test(diff(log(london_cases_ts$cases_normalised),lag=7), lag = 1, type = "Ljung")
+# p<0.05 -> not stationary
+
 
 
 # ARIMA auto on log
@@ -312,10 +381,13 @@ cases_ts_pred_actual <- london_cases_ts_all %>% filter(date>=end_date)
 cases_ts_pred_actual$date <-as.Date(cases_ts_pred_actual$date)
 
 
+# Plot on original scale
+
 ggplot() +
-  geom_line(data=london_cases_ts, aes(x=date,y=cases_normalised)) + 
-  geom_line(data=cases_ts_pred_actual, aes(x=date,y=cases_normalised), col="blue")+
-  geom_line(data=pred_final_cases, aes(x=date,y=exp(cases_pred)), linetype="dashed", col="red")+
+  geom_line(data=london_cases_ts, aes(x=date,y=cases_normalised*(max_cases-min_cases)+min_cases)) + 
+  geom_line(data=cases_ts_pred_actual, aes(x=date,y=cases_normalised*(max_cases-min_cases)+min_cases), col="blue")+
+  geom_line(data=pred_final_cases, aes(x=date,y=(exp(cases_pred) 
+                                       *(max_cases-min_cases)+min_cases)), linetype="dashed", col="red")+
   ggtitle("Official cases in London")+
   labs(y="Cases",
        x="Date (2020)",
@@ -346,6 +418,12 @@ london_prev_smooth_ts_all$prev_normalised <- min_max_normalise(london_prev_smoot
 # Check normalisation
 summary(london_prev_smooth_ts_all$prev_normalised)
 
+
+min_prev <- min(london_prev_smooth_ts_all$p)
+min_prev #  0.0005074915
+max_prev <- max(london_prev_smooth_ts_all$p)
+max_prev # 0.01363462
+
 london_prev_smooth_ts_all$prev_normalised[london_prev_smooth_ts_all$prev_normalised==0]<-min(london_prev_smooth_ts_all$prev_normalised[london_prev_smooth_ts_all$prev_normalised!=0])
 min(london_prev_smooth_ts_all$prev_normalised) 
 
@@ -367,19 +445,32 @@ ggplot(data=london_prev_smooth_ts, aes(x=d_comb,y=p)) +
 
 
 
+# For Ljung Box test
+library(stats)
+# H0: data are independently distributed
+# H1: data are not independtly distributed; they exhibit serial correlation
+
 # Normalised data
 tsplot(london_prev_smooth_ts$prev_normalised)
+Box.test(london_prev_smooth_ts$prev_normalised, lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
+
 # Log normalised (to reduce increasing variance)
 tsplot(log(london_prev_smooth_ts$prev_normalised))
+Box.test(log(london_prev_smooth_ts$prev_normalised), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
 # Non-seasonal differenced - not logged
 tsplot(diff(london_prev_smooth_ts$prev_normalised))
-# Second difference...
-tsplot(diff(diff(london_prev_smooth_ts$prev_normalised)))
-# Third difference - starting to look a lot better
-tsplot(diff(diff(diff(london_prev_smooth_ts$prev_normalised))),)
-# Add a log back in...
-tsplot(diff(diff(diff(log(london_prev_smooth_ts$prev_normalised)))))
-# Doesn't look good...
+Box.test(diff(london_prev_smooth_ts$prev_normalised), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
+# Non-seasonal differenced -  logged
+tsplot(diff(log(london_prev_smooth_ts$prev_normalised)))
+Box.test(diff(log(london_prev_smooth_ts$prev_normalised)), lag = 20, type = "Ljung")
+# p<0.05 -> not stationary
+
 
 # Try auto ARIMA
 
@@ -401,11 +492,17 @@ prev_smooth_fit_log <- london_prev_smooth_ts %>%
   )
 
 prev_smooth_fit_log
-sarima(log(london_prev_smooth_ts$prev_normalised),1,1,1)
+
+sarima_prev_log <- sarima(log(london_prev_smooth_ts$prev_normalised),1,1,1)
+sarima_prev_log
 # A lot better!
 # AIC: -0.09708353
 # BIC: -0.01888209
-# Does pretty well on all tests! Definitely better fit logged (despited higher AIC/BIC)
+# Does pretty well on all tests! Definitely better fit logged -> AIC and BIC nat difference scaled
+
+
+str(sarima_prev_log)
+dput(sarima_prev_log$fit) # gives the model and coefficients
 
 ### Plotting model/forecsating ------------------------------------------------
 
@@ -429,10 +526,12 @@ prev_ts_pred_actual <- london_prev_smooth_ts_all %>% filter(d_comb>=end_date)
 prev_ts_pred_actual$d_comb <-as.Date(prev_ts_pred_actual$d_comb)
 
 
+exp(prev_pred)*(max_prev-min_prev)+min_prev
+
 ggplot() +
-  geom_line(data=london_prev_smooth_ts, aes(x=d_comb,y=prev_normalised)) + 
-  geom_line(data=prev_ts_pred_actual, aes(x=d_comb,y=prev_normalised), col="blue")+
-  geom_line(data=pred_final_prev, aes(x=date,y=exp(prev_pred)), linetype="dashed", col="red")+
+  geom_line(data=london_prev_smooth_ts, aes(x=d_comb,y=prev_normalised*(max_prev-min_prev)+min_prev)) + 
+  geom_line(data=prev_ts_pred_actual, aes(x=d_comb,y=prev_normalised*(max_prev-min_prev)+min_prev), col="blue")+
+  geom_line(data=pred_final_prev, aes(x=date,y=exp(prev_pred)*(max_prev-min_prev)+min_prev), linetype="dashed", col="red")+
   ggtitle("REACT Prevalence in London")+
   labs(y="Prevalence (%)",
        x="Date (2020)",

@@ -69,6 +69,11 @@ prev_smooth_ts <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ti
 
 workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplaces", date<=lockdown_2_start)
 
+min_workplace <- min(workplace_ts$mobility)
+min_workplace #-87
+max_workplace <- max(workplace_ts$mobility)
+max_workplace # 1
+
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
 
@@ -81,6 +86,11 @@ workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workp
 
 
 london_prev_smooth_ts <- prev_smooth_ts %>% filter(region=="LONDON", d_comb<lockdown_2_start)
+
+min_prev <- min(london_prev_smooth_ts$p)
+min_prev #  0.0005074915
+max_prev <- max(london_prev_smooth_ts$p)
+max_prev # 0.01363462
 
 # Normalisation
 london_prev_smooth_ts$prev_normalised <- min_max_normalise(london_prev_smooth_ts$p)
@@ -95,6 +105,11 @@ min(london_cases_ts$cases_normalised)
 
 
 london_cases_ts <- cases_ts %>% filter(region=="LONDON", date>=start_date)
+
+min_cases <- min(london_cases_ts$cases)
+min_cases #20
+max_cases <- max(london_cases_ts$cases)
+max_cases # 36920
 
 
 # Normalisation

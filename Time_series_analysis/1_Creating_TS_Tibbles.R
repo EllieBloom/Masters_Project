@@ -36,7 +36,7 @@ lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
 
 google_regional <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs/google_regional_long.csv")
 
-# List of
+# Removing first column 'X' as not needed
 google_regional <- google_regional[,-1]
 
 # Converting dates from string format to date
@@ -51,20 +51,16 @@ google_regional$bank_holiday <- as.factor(google_regional$bank_holiday)
 region_list <- unique(google_regional$region)
 
 # Making it into a tstibble
-
-
 mobility_tibble <- google_regional %>%
   as_tsibble(key=c(region, type_mobility),index=date)
 
 
 # Raw data tibble only
-
 mobility_tibble_raw <- mobility_tibble %>%
   filter(!grepl('av',type_mobility))
 
 
 # Rolling average tibble only
-
 mobility_tibble_av <- mobility_tibble %>%
   filter(grepl('av',type_mobility))
 

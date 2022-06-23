@@ -73,9 +73,9 @@ workplace_ts <- mobility_ts %>% filter(region=="LONDON",type_mobility=="workplac
 workplace_ts$mobility_normalised <- min_max_normalise(workplace_ts$mobility)
 summary(workplace_ts$mobility_normalised)
 
+# Changing the minimum to be non-zero to allow to be logged
 table(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0])
 min(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised!=0])
-
 workplace_ts$mobility_normalised[workplace_ts$mobility_normalised==0]<-min(workplace_ts$mobility_normalised[workplace_ts$mobility_normalised!=0])
 
 ## REACT prevalence --------------------------------------------------------
