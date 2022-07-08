@@ -83,3 +83,86 @@ boxplot_beta_workplace_final
 
 setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
 ggsave("boxplot_england_beta_workplace.png",boxplot_beta_workplace_final)
+
+
+
+
+# Barplot of betas --------------------------------------------------------
+
+min(workplace_regional_lockdown1$days_since_lockdown)
+max(workplace_regional_lockdown1$days_since_lockdown) # overall maximum
+
+min(workplace_regional_lockdown2$days_since_lockdown) # overall minimum
+max(workplace_regional_lockdown2$days_since_lockdown)
+
+min(workplace_regional_lockdown3$days_since_lockdown)
+max(workplace_regional_lockdown3$days_since_lockdown)
+
+barplot_min <-  min(workplace_regional_lockdown2$days_since_lockdown)
+barplot_max <- max(workplace_regional_lockdown1$days_since_lockdown) 
+
+## Lockdown 1 --------------------------------------------------------------
+
+workplace_regional_lockdown1 <- workplace_regional_lockdown1[order(-workplace_regional_lockdown1$days_since_lockdown),]
+workplace_regional_lockdown1$X <-as.factor(workplace_regional_lockdown1$X)
+
+
+barplot_beta_lockdown1 <- ggplot(data=workplace_regional_lockdown1, aes(x=X,y=days_since_lockdown*7))+
+  geom_bar(stat="identity", color="#F8766D", fill="#F8766D", width=0.25) +
+  scale_x_discrete(limits=workplace_regional_lockdown1$X) +
+  xlab("")+
+  scale_y_continuous(expand=c(0,0)) +
+  ylab("Percentage point change in mobility per week") +
+  ggtitle("") +
+  coord_flip() +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+barplot_beta_lockdown1
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
+ggsave("barplot_england_beta_workplace_lockdown1.png",barplot_beta_lockdown1)
+
+
+
+## Lockdown 2 --------------------------------------------------------------
+
+workplace_regional_lockdown2 <- workplace_regional_lockdown2[order(-workplace_regional_lockdown2$days_since_lockdown),]
+workplace_regional_lockdown2$X <-as.factor(workplace_regional_lockdown2$X)
+
+
+barplot_beta_lockdown2 <- ggplot(data=workplace_regional_lockdown2, aes(x=X,y=days_since_lockdown*7))+
+  geom_bar(stat="identity", color="#00BA38", fill="#00BA38", width=0.25) +
+  scale_x_discrete(limits=workplace_regional_lockdown2$X) +
+  xlab("")+
+  scale_y_continuous(expand=c(0,0)) +
+  ylab("Percentage point change in mobility per week") +
+  ggtitle("") +
+  coord_flip() +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+barplot_beta_lockdown2
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
+ggsave("barplot_england_beta_workplace_lockdown2.png",barplot_beta_lockdown2)
+
+## Lockdown 3 --------------------------------------------------------------
+
+workplace_regional_lockdown3 <- workplace_regional_lockdown3[order(-workplace_regional_lockdown3$days_since_lockdown),]
+workplace_regional_lockdown3$X <-as.factor(workplace_regional_lockdown3$X)
+
+
+barplot_beta_lockdown3 <- ggplot(data=workplace_regional_lockdown3, aes(x=X,y=days_since_lockdown*7))+
+  geom_bar(stat="identity", color="#619CFF", fill="#619CFF", width=0.25) +
+  scale_x_discrete(limits=workplace_regional_lockdown3$X) +
+  xlab("")+
+  scale_y_continuous(expand=c(0,0)) +
+  ylab("Percentage point change in mobility per week") +
+  ggtitle("") +
+  coord_flip() +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+barplot_beta_lockdown3
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
+ggsave("barplot_england_beta_workplace_lockdown3.png",barplot_beta_lockdown3)
+
