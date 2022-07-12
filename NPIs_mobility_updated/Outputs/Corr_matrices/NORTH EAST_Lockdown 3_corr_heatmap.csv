@@ -1,7 +1,0 @@
-"","Retail","Grocery and Pharmacy","Parks","Transit Stations","Workplaces","Residential"
-"Retail",1,0.89,0.87,0.98,0.77,-0.97
-"Grocery and Pharmacy",0.89,1,0.87,0.87,0.74,-0.89
-"Parks",0.87,0.87,1,0.86,0.5,-0.82
-"Transit Stations",0.98,0.87,0.86,1,0.82,-0.99
-"Workplaces",0.77,0.74,0.5,0.82,1,-0.88
-"Residential",-0.97,-0.89,-0.82,-0.99,-0.88,1

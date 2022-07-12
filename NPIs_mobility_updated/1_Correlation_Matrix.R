@@ -122,8 +122,8 @@ convert_cormat_heatmap <- function(cormat, region_interest_neat,time_period_name
   }
   
   # Reorder the correlation matrix
-  cormat <- reorder_cormat(cormat)
-  upper_tri <- get_upper_tri(cormat)
+  # cormat <- reorder_cormat(cormat) # Commented this out
+  # upper_tri <- get_upper_tri(cormat) # Commented this out
   # Melt the correlation matrix
   melted_cormat <- melt(upper_tri, na.rm = TRUE)
   # Create a ggheatmap
@@ -144,7 +144,7 @@ convert_cormat_heatmap <- function(cormat, region_interest_neat,time_period_name
   # Add correlation coefficients
   
   ggheatmap_final<- ggheatmap + 
-    geom_text(aes(X2, X1, label = value), color = "black", size = 4) +
+    geom_text(aes(X2, X1, label = value), color = "black", size = 8) +
     ggtitle(region_interest_neat) +
     labs(subtitle=time_period_name)+
     theme(
@@ -176,73 +176,95 @@ convert_cormat_heatmap <- function(cormat, region_interest_neat,time_period_name
 
 # Loop for England and each region in England
 
+cor_summary_whole_period <- NA
+
 for (i in 1:length(region_list)){
   region=region_list[i]
   region_neat=region_list_neat[i]
   period="Whole period"
   cormat <- get_cormat(data=google_england, region_interest=region)
-  setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
-  matrix_name <- paste0(region,"_",period,"_corr_heatmap.csv")
-  write.csv(cormat,matrix_name)
+  cor_summary_whole_period <- rbind(cor_summary_whole_period,paste(region_neat,period),cormat)
   heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
-  plot_name <- paste0(region,"_",period,"_corr_heatmap.pdf")
+  plot_name <- paste0(region,"_",period,"_corr_heatmap.png")
   setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_heatmaps")
-  ggsave(plot_name,heatmap,device="pdf")
+  ggsave(plot_name,heatmap,device="png")
 }
 
+cor_summary_whole_period <- cor_summary_whole_period[-1,]
+cor_summary_whole_period
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
+write.csv(cor_summary_whole_period,"Corr_England_whole_period.csv")
 
 # Lockdown 1 ------------------------------------------------------------
 
 # Loop for England and each region in England
+
+
+cor_summary_lockdown_1 <- NA
 
 for (i in 1:length(region_list)){
   region=region_list[i]
   region_neat=region_list_neat[i]
   period="Lockdown 1"
   cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_1_start, end_date=lockdown_1_end)
-  setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
-  matrix_name <- paste0(region,"_",period,"_corr_heatmap.csv")
-  write.csv(cormat,matrix_name)
+  cor_summary_lockdown_1 <- rbind(cor_summary_lockdown_1,paste(region_neat,period),cormat)
   heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
-  plot_name <- paste0(region,"_",period,"_corr_heatmap.pdf")
+  plot_name <- paste0(region,"_",period,"_corr_heatmap.png")
   setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_heatmaps")
-  ggsave(plot_name,heatmap,device="pdf")
+  ggsave(plot_name,heatmap,device="png")
 }
+
+cor_summary_lockdown_1 <- cor_summary_lockdown_1[-1,]
+cor_summary_lockdown_1
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
+write.csv(cor_summary_lockdown_1,"Corr_England_lockdown_1.csv")
 
 # Lockdown 2 ------------------------------------------------------------
 
 # Loop for England and each region in England
+
+cor_summary_lockdown_2 <- NA
 
 for (i in 1:length(region_list)){
   region=region_list[i]
   region_neat=region_list_neat[i]
   period="Lockdown 2"
   cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_2_start, end_date=lockdown_2_end)
-  setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
-  matrix_name <- paste0(region,"_",period,"_corr_heatmap.csv")
-  write.csv(cormat,matrix_name)
+  cor_summary_lockdown_2 <- rbind(cor_summary_lockdown_2,paste(region_neat,period),cormat)
   heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
-  plot_name <- paste0(region,"_",period,"_corr_heatmap.pdf")
+  plot_name <- paste0(region,"_",period,"_corr_heatmap.png")
   setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_heatmaps")
-  ggsave(plot_name,heatmap,device="pdf")
+  ggsave(plot_name,heatmap,device="png")
 }
 
+cor_summary_lockdown_2 <- cor_summary_lockdown_2[-1,]
+cor_summary_lockdown_2
 
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
+write.csv(cor_summary_lockdown_2,"Corr_England_lockdown_2.csv")
 
 # Lockdown 3 ------------------------------------------------------------
 
 # Loop for England and each region in England
+
+cor_summary_lockdown_3 <- NA
 
 for (i in 1:length(region_list)){
   region=region_list[i]
   region_neat=region_list_neat[i]
   period="Lockdown 3"
   cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_3_start, end_date=lockdown_3_end)
-  setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
-  matrix_name <- paste0(region,"_",period,"_corr_heatmap.csv")
-  write.csv(cormat,matrix_name)
+  cor_summary_lockdown_3 <- rbind(cor_summary_lockdown_3,paste(region_neat,period),cormat)
   heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
-  plot_name <- paste0(region,"_",period,"_corr_heatmap.pdf")
+  plot_name <- paste0(region,"_",period,"_corr_heatmap.png")
   setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_heatmaps")
-  ggsave(plot_name,heatmap,device="pdf")
+  ggsave(plot_name,heatmap,device="png")
 }
+
+cor_summary_lockdown_3 <- cor_summary_lockdown_3[-1,]
+cor_summary_lockdown_3
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
+write.csv(cor_summary_lockdown_3,"Corr_England_lockdown_3.csv")
