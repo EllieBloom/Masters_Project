@@ -542,12 +542,28 @@ date_labels=c("" ,"March 2020", "" ,"", "June 2020" ,"" ,"","Sept 2020" ,""
 boxplot_monthly <- ggplot(data=monthly_means_long, aes(x=as.factor(date),y=value))+
                   geom_boxplot(outlier.shape=4, color="royal blue")+
                   xlab("Date")+
-                  ylab("Percentage change in workplace mobility from baseline")+
+                  ylab("Mobility compared to baseline (%)")+
                   ggtitle("Boxplot of mean workplace mobility for each region in England")+
                   scale_x_discrete(labels=date_labels)+
                   theme_light()+
                   theme(plot.title = element_text(hjust = 0.5))
 
 boxplot_monthly  
+
+# Add in England too
+
+cols <- c("retail_recreation_av", 
+          "grocery_pharmacy_av", "parks_av", "transit_stations_av", "workplaces_av", 
+          "residential_av")
+
+google_england_long <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs/google_england_long.rds")
+google_england_whole <- google_england_long %>% filter(region=="ENGLAND", type_mobility %in% cols)
+google_england_whole_workplace <- google_england_whole %>% filter(type_mobility=="workplaces_av")
+  
+  
+boxplot_monthly + geom_line(data=google_england_whole_workplace, aes(x=date,y=mobility))
+
+
+
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Descriptive/Ouputs/Google")
 ggsave("Google_regional_wrokplace_boxplot.pdf", plot=boxplot_monthly)
