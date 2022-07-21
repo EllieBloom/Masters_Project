@@ -59,7 +59,15 @@ plot_baseline <- ggplot(data=google_england, aes(x=date,y=mobility,color=type_mo
                limits=c(lockdown_1_start, lockdown_3_end)) +
   scale_color_hue(labels = labels)+
   theme_light() +
-  theme(plot.title = element_text(hjust = 0.5),legend.position = "right")
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "right",
+        panel.border=element_blank(),
+        axis.line = element_line(colour = "black"))+
+  geom_hline(yintercept=0, linetype="dashed", size=0.5, col="grey")
+  
+plot_baseline
+
+
+
 
 plot_baseline
 
@@ -102,7 +110,7 @@ plot_baseline <- ggplot(data=google_england_whole, aes(x=date,y=mobility,color=t
   xlab("") +
   ylab ("Mobility compared to baseline (%)") +
   ggtitle("") +
-  labs(color = "") + # This means that the title for the legent is blank
+  labs(color = "") + # This means that the title for the legend is blank
   scale_x_date(breaks = function(x) seq.Date(from = min(x), 
                                              to = max(x), 
                                              by = "3 months"),
