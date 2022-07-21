@@ -45,343 +45,472 @@ mobility_av <- mobility_google %>% filter(str_detect(type_mobility, 'av'))
 # Defining a list of types of mobility
 types_mobility <- c("retail_recreation_av", "grocery_pharmacy_av", "parks_av","transit_stations_av", "workplaces_av","residential_av")
 
+mobility_av <- mobility_av %>% 
+  mutate(type_mobility = 
+           case_when(type_mobility=="retail_recreation_av"~"Retail & recreation" ,
+                     type_mobility=="grocery_pharmacy_av"~ "Grocery & pharmacy",
+                     type_mobility=="parks_av"~ "Parks",
+                     type_mobility=="transit_stations_av"~ "Transit stations",
+                     type_mobility=="workplaces_av"~ "Workplaces",
+                     type_mobility=="residential_av"~ "Residential"))
+
+
+types_mobility <- dput(unique(mobility_av$type_mobility))    
+types_mobility
 
 # Load REACT reproduction number data -------------------------------------
 
 react_reprod <- readRDS("~/Desktop/Masters/Project/Data/REACT_reproduction/National_reproduction_R.rds")
 
-# Plot looks reasonable:
-# ggplot(react_reprod, aes(d_comb,r)) +
-#   geom_line()
+REACT_reprod_start <- as.Date("2020-05-15","%Y-%m-%d")
+
+
+
+
+# Functions
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results")
+# DTW
+dtw_full <- function(query=mobility_av, reference=react_reprod, 
+                     mobility_place="Workplaces", start_date, end_date, region="ENGLAND"){
+  # Filtering data
+  mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+  reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+  # DTW function
+  dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+  print("Mean distance between indices is:")
+  print(mean(dtw_lag$index1 - dtw_lag$index2))
+  # DTW path plot
+  dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+  colnames(dtw_data)<- c("mob_index","r_index")
+  write.csv(dtw_data,"dtw_indices.csv" )
+  dtw_plot <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+                      geom_line(col="blue") + 
+                      theme_bw() +
+                      labs(x="Mobility series index",
+                           y="R(t) series index")+
+                      #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+                      geom_abline(slope=1, intercept=0, col="red", linetype="dashed")
+  plot_name <- paste0("plot_dtw_",region,"_",start_date,"_",end_date,"_",mobility_place,".png")
+  return(dtw_plot)
+  ggsave(plot_name, dtw_plot)
+  }
+
+# Test
+# dtw_full(query=mobility_av, reference=react_reprod, 
+#          mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND")
+
+
+# CCF
+
+ccf_full <- function(query=mobility_av, reference=react_reprod, 
+                     mobility_place="Workplaces", start_date, end_date, region="ENGLAND"){
+  mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+  reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+  lag_max=100
+  ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
+  ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
+  colnames(ccf_data)[1:2]<-c("ccf","lag")
+  print("Max lag is at:")
+  print(ccf_data$lag[which.max(ccf_data$ccf)])
+  
+  n <- nrow(mob)
+  #k <- seq(1,lag_max,1)
+  
+  ccf_data <- ccf_data %>% 
+    mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+           lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+  ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
+  write.csv(ccf_data,ccf_data_name )
+  
+  ccf_plot <- ccf_data %>% filter(lag>=-100) %>%
+    ggplot(aes(x=lag))+
+    geom_area(aes(y=upper_ci), fill="light grey")+
+    geom_area(aes(y=lower_ci), fill="light grey") +
+    geom_line(aes(y=ccf), color="royal blue") +
+    geom_hline(yintercept=0, color="dark grey") +
+    annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
+             y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
+    annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
+             y=max(ccf_data$ccf)+0.02, col="Red") +
+    #ylim(-0.2,0.4) +
+    labs(x="Lag (days)", y="CCF")+
+    #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
+    ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region))+
+    theme_light()
+  ccf_plot_name <-  paste0("plot_ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".png")
+  ggsave(ccf_plot_name, ccf_plot)
+}
+
+# Test
+# ccf_full(query=mobility_av, reference=react_reprod, 
+#          mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND")
+# 
+
+# Plotting the time series of interest
+
+plot_period<- function(query=mobility_av, reference=react_reprod, 
+            mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND"){
+  mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+  reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+  
+  mob <- mob[c("date" ,"mobility" , "type_mobility")]
+  colnames(mob) <- c("date_series" , "series", "type")
+  mob$series <- normalize(mob$series)
+  write.csv(mob,"mob_series.csv")
+  reprod <- reprod[c("r","d_comb")]
+  reprod$type <- "R(t)"
+  colnames(reprod) <- c("series","date_series","type")
+  reprod$series <- normalize(reprod$series)
+  write.csv(reprod,"r_series.csv")
+  data <- rbind(mob, reprod)
+  plot_series <- ggplot(data)+
+    geom_line(aes(x=date_series,y=series, col=type))+
+    theme_light()+
+    labs(y="Normalised time-series", x="")+
+    ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region))+
+    theme(plot.title = element_text(hjust = 0.5),legend.position = "right",
+          panel.border=element_blank(),
+          axis.line = element_line(colour = "black"),
+          legend.title = element_blank())
+  plot_name <- paste0("plot_series_",region,"_",start_date,"_",end_date,"_",mobility_place,".png")
+  ggsave(plot_name, plot_series)
+}
 
-# Note that the start of the REACT data is actually 15th May 2020
-REACT_reprod_start <- REACT_start <-as.Date("2020-05-15","%Y-%m-%d")
+# Test
+# plot_period(query=mobility_av, reference=react_reprod, 
+#          mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND")
 
 
+# test in full
 
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results")
+lag_combined <- function(query=mobility_av, reference=react_reprod, 
+                         mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND"){
+  
+  dtw_full(query,reference, mobility_place, start_date, end_date, region)
+  ccf_full(query,reference, mobility_place, start_date, end_date, region)
+  plot_period(query,reference, mobility_place, start_date, end_date, region)
+}
 
-# CCF  whole period - workplace---------------------------------------------------
 
-lag_max=100
 
-# Testing out with workplace mobility
 
-mobility <- mobility_av %>% 
-              filter(type_mobility == "workplaces_av") %>% 
-              filter(date >= REACT_reprod_start, date <= lockdown_3_end) %>% 
-              filter(region=="ENGLAND") #%>%
-              #select(mobility)
+# Whole period,  England, workplaces --------------------------------------
 
-reprod <- react_reprod %>% 
-          filter(d_comb >= REACT_reprod_start, d_comb <= lockdown_3_end) #%>%
-          #select(r)
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Whole_period")
+lag_combined(query=mobility_av, reference=react_reprod, 
+                      mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND")
 
 
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green")+
-  theme_light()
 
-# Plot with z normalisation
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=normalize(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=normalize(r)), col="green")+
-  theme_light()
- 
+## Refining plots ----------------------------------------------------------
+query=mobility_av
+reference=react_reprod 
+mobility_place="Workplaces"
+start_date = REACT_reprod_start
+end_date = lockdown_3_end
+region="ENGLAND"
 
 
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
 
-ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
-colnames(ccf_data)[1:2]<-c("ccf","lag")
+  mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+  reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+  # DTW function
+  dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+  print("Mean distance between indices is:")
+  print(mean(dtw_lag$index1 - dtw_lag$index2))
+  # DTW path plot
+  dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+  colnames(dtw_data)<- c("mob_index","r_index")
 
+  
+  dtw_plot_whole_period <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+    geom_line(col="blue") + 
+    theme_bw() +
+    labs(x="Mobility series index",
+         y="R(t) series index")+
+    #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+    geom_abline(slope=1, intercept=0, col="red", linetype="dashed")
+  
+  dtw_plot_whole_period
 
-ccf_data %>% filter(lag>=-100) %>%
-  ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
-  geom_line(aes(y=ccf), color="royal blue") +
-  geom_hline(yintercept=0, color="dark grey") +
-  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf)+0.02, col="Red") +
-  #ylim(-0.2,0.4) +
-  labs(x="Lag (days)", y="CCF")+
-  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
-  theme_light()
 
-# Max at lag=0
-ccf_data$lag[which.max(ccf_data$ccf)]
 
-# Looking for the second peak
-ccf_data$lag[which.max(ccf_data$ccf[ccf_data$lag>25])]
+# Lockdown 1,  England, workplaces ----------------------------------------
 
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-#150.9157 (whatever that means)
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_1")
+lag_combined(query=mobility_av, reference=react_reprod, 
+             mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_1_end, region="ENGLAND")
 
-dtw_lag$normalizedDistance
-#0.220637
 
-plot(dtw_lag$index1, dtw_lag$index2)
-abline(a=0, b=1, col="red", lty="dashed")
-mean(dtw_lag$index1 - dtw_lag$index2)
-# 46.43842
 
+# Refining plots ----------------------------------------------------------
 
-# Min max normalise
-
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-
-# Difference in the indices with min max normalisation is...
-
-plot(dtw_lag$index1, dtw_lag$index2)
-abline(a=0, b=1, col="red", lty="dashed")
-mean(dtw_lag$index1 - dtw_lag$index2)
-# 21.68988 now - odd that it's different -> start of the plot is very different -> have a clearer cross-over with min max normalisation than with z-norm
-
-
-
-
-# CCF  lockdown 3 period - workplace---------------------------------------------------
-
-
-# Testing out with workplace mobility
-
-mobility <- mobility_av %>% 
-  filter(type_mobility == "workplaces_av") %>% 
-  filter(date >= lockdown_3_start, date <= lockdown_3_end) %>% 
-  filter(region=="ENGLAND") #%>%
-#select(mobility)
-
-reprod <- react_reprod %>% 
-  filter(d_comb >= lockdown_3_start, d_comb <= lockdown_3_end) #%>%
-#select(r)
-
-
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green") +
-  theme_light()
-
-
-
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
-ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
-colnames(ccf_data)[1:2]<-c("ccf","lag")
-
-
-ccf_data %>% filter(lag>=-100) %>%
-  ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
-  geom_line(aes(y=ccf), color="royal blue") +
-  geom_hline(yintercept=0, color="dark grey") +
-  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf)+0.02, col="Red") +
-  #ylim(-0.2,0.4) +
-  labs(x="Lag (days)", y="CCF")+
-  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
-  theme_light()
-
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 22 days
-
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-# 12 (whatever that means)
-dtw_lag$normalizedDistance
-# 0.169
-
-mean(dtw_lag$index1 - dtw_lag$index2)
-# Average difference in index is only 1.72
-plot(dtw_lag$index1, dtw_lag$index2)
-abline(a=0, b=1, col="red", lty="dashed")
-
-
-
-# Normalised distance is as a proportion of length of the period maybe?
-#dtw_lag$normalizedDistance * difftime(lockdown_1_end,REACT_reprod_start) # but this could give 1.7666 days
-
-
-# EXPERIMENTING TO UNDERSTAND DTW
-
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-# 20.6 days # Only seems to work if I also min max normalise too, but reassuring that the same as CCF again
-
-
-# Experimenting with open begin and end arguments
-#dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r), open.begin=TRUE) # this doesn't work as it requires step patterns with N nromalisation
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r), open.begin=TRUE, open.end=TRUE, step.pattern = asymmetric)
-dtw_lag$distance
-#8.387524
-
-mean(dtw_lag$index1 - dtw_lag$index2)
-# 2.433962
-
-plot(dtw_lag$index1,dtw_lag$index2, ylim=c(0,106), xlim=c(0,106))
-abline(a=0, b=1, col="red", lty="dashed")
-
-ggplot()+
-  geom_line(data=mobility,aes(x=date,y=normalize(mobility)),col="red")+
-  geom_line(data=reprod, aes(x=d_comb,y=normalize(r)),col="blue")
-
-
-# testing out a wave with an exact movement
-
-
-# CCF  lockdown 2 period - workplace---------------------------------------------------
-
-
-# Testing out with workplace mobility
-
-mobility <- mobility_av %>% 
-  filter(type_mobility == "workplaces_av") %>% 
-  filter(date >= lockdown_2_start, date <= lockdown_2_end) %>% 
-  filter(region=="ENGLAND") #%>%
-#select(mobility)
-
-reprod <- react_reprod %>% 
-  filter(d_comb >= lockdown_2_start, d_comb <= lockdown_2_end) #%>%
-#select(r)
-
-
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green")+
-  theme_light()
-
-
-
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
-ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
-colnames(ccf_data)[1:2]<-c("ccf","lag")
-
-
-ccf_data %>% filter(lag>=-100) %>%
-  ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
-  geom_line(aes(y=ccf), color="royal blue") +
-  geom_hline(yintercept=0, color="dark grey") +
-  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf)+0.02, col="Red") +
-  #ylim(-0.2,0.4) +
-  labs(x="Lag (days)", y="CCF")+
-  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
-  theme_light()
-
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 0 days
-
-# Try CCF with min max normalisation
-
-ccf <- ccf(min_max_normalise(reprod$r),min_max_normalise(mobility$mobility),lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
-ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
-colnames(ccf_data)[1:2]<-c("ccf","lag")
-
-
-ccf_data %>% filter(lag>=-100) %>%
-  ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
-  geom_line(aes(y=ccf), color="royal blue") +
-  geom_hline(yintercept=0, color="dark grey") +
-  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf)+0.02, col="Red") +
-  #ylim(-0.2,0.4) +
-  labs(x="Lag (days)", y="CCF")+
-  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
-  theme_light()
-
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 0 days
+query=mobility_av
+reference=react_reprod, 
+mobility_place="Workplaces"
+start_date = REACT_reprod_start
+end_date = lockdown_1_end
+region="ENGLAND"
 
 # DTW
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+# DTW function
+dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+print("Mean distance between indices is:")
+print(mean(dtw_lag$index1 - dtw_lag$index2))
+# DTW path plot
+dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+colnames(dtw_data)<- c("mob_index","r_index")
 
 
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-# 9.61 (whatever that means)
-dtw_lag$normalizedDistance
-# 0.171717
+dtw_plot_lockdown_1 <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+  geom_line(col="blue") + 
+  theme_bw() +
+  labs(x="Mobility series index",
+       y="R(t) series index")+
+  #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+  geom_abline(slope=1, intercept=0, col="red", linetype="dashed")+
+  theme(axis.line = element_line(colour = "black"),panel.border = element_blank())
 
-mean(dtw_lag$index1-dtw_lag$index2)
-# -2.47619
+dtw_plot_lockdown_1
 
-plot(dtw_lag$index1,dtw_lag$index2)
-abline(a=0,b=1,col="red",lty="dashed")
+# CCF
 
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-# 2.48 days # Only seems to work if I also min max normalise too, but reassuring that the same as CCF again
-
-
-plot(dtw_lag$index1,dtw_lag$index2)
-abline(a=0,b=1,col="red",lty="dashed")
-
-
-
-
-
-
-
-# CCF  lockdown 1 period - workplace---------------------------------------------------
-
-
-# Testing out with workplace mobility
-
-mobility <- mobility_av %>% 
-  filter(type_mobility == "workplaces_av") %>% 
-  filter(date >= REACT_reprod_start, date <= lockdown_1_end) %>% 
-  filter(region=="ENGLAND") #%>%
-#select(mobility)
-
-reprod <- react_reprod %>% 
-  filter(d_comb >= REACT_reprod_start, d_comb <= lockdown_1_end) #%>%
-#select(r)
-
-
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green")
-
-
-
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
 ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
 colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
+
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
+
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
 
 
-ccf_data %>% filter(lag>=-100) %>%
+ccf_plot_lockdown_1 <- ccf_data %>% filter(lag>=-24,lag<=24) %>% 
   ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_line(aes(y=ccf), color="royal blue") +
+  geom_hline(yintercept=0, color="dark grey") +
+  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
+           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
+  #annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
+  #         y=max(ccf_data$ccf)+0.03, col="Red") +
+  #ylim(-0.2,0.4) +
+  labs(x="Lag (days)", y="CCF")+
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "none")+
+  scale_x_continuous(limits=c(-25,25))+
+  scale_y_continuous(limits=c(-1,1))
+
+ccf_plot_lockdown_1
+
+# Lockdown 2,  England, workplaces ----------------------------------------
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_2")
+lag_combined(query=mobility_av, reference=react_reprod, 
+             mobility_place="Workplaces", start_date = lockdown_2_start, end_date = lockdown_2_end, region="ENGLAND")
+
+
+# Refining plots ----------------------------------------------------------
+
+query=mobility_av
+reference=react_reprod, 
+mobility_place="Workplaces"
+start_date = lockdown_2_start
+end_date = lockdown_2_end
+region="ENGLAND"
+
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+# DTW function
+dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+print("Mean distance between indices is:")
+print(mean(dtw_lag$index1 - dtw_lag$index2))
+# DTW path plot
+dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+colnames(dtw_data)<- c("mob_index","r_index")
+
+
+dtw_plot_lockdown_2 <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+  geom_line(col="blue") + 
+  theme_bw() +
+  labs(x="Mobility series index",
+       y="R(t) series index")+
+  #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+  geom_abline(slope=1, intercept=0, col="red", linetype="dashed")+
+  theme(axis.line = element_line(colour = "black"),
+        panel.border = element_blank())
+
+dtw_plot_lockdown_2
+
+# CCF
+
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
+ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
+colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
+
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
+
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
+
+
+ccf_plot_lockdown_2 <- ccf_data %>% filter(lag>=-24,lag<=24) %>%
+  ggplot(aes(x=lag))+
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_line(aes(y=ccf), color="royal blue") +
+  geom_hline(yintercept=0, color="dark grey") +
+  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
+           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
+  #annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
+  #         y=max(ccf_data$ccf)+0.03, col="Red") +
+  #ylim(-0.2,0.4) +
+  labs(x="Lag (days)", y="CCF")+
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "none")+
+  scale_x_continuous(limits=c(-25,25))+
+  scale_y_continuous(limits=c(-1,1))
+
+ccf_plot_lockdown_2
+
+
+# Lockdown 3,  England, workplaces ----------------------------------------
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_3")
+lag_combined(query=mobility_av, reference=react_reprod, 
+             mobility_place="Workplaces", start_date = lockdown_3_start, end_date = lockdown_3_end, region="ENGLAND")
+
+
+
+# Refining plots ----------------------------------------------------------
+query=mobility_av
+reference=react_reprod, 
+mobility_place="Workplaces"
+start_date = lockdown_3_start
+end_date = lockdown_3_end
+region="ENGLAND"
+
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+# DTW function
+dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+print("Mean distance between indices is:")
+print(mean(dtw_lag$index1 - dtw_lag$index2))
+# DTW path plot
+dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+colnames(dtw_data)<- c("mob_index","r_index")
+
+
+dtw_plot_lockdown_3<-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+  geom_line(col="blue") + 
+  theme_bw() +
+  labs(x="Mobility series index",
+       y="R(t) series index")+
+  #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+  geom_abline(slope=1, intercept=0, col="red", linetype="dashed")+
+  theme(axis.line = element_line(colour = "black"),
+        panel.border = element_blank())
+  
+
+dtw_plot_lockdown_3
+
+# CCF
+
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
+ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
+colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
+
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
+
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
+
+
+ccf_plot_lockdown_3 <- ccf_data %>% filter(lag>=-100) %>%
+  ggplot(aes(x=lag))+
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_line(aes(y=ccf), color="royal blue") +
+  geom_hline(yintercept=0, color="dark grey") +
+  annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
+           y=max(ccf_data$ccf),ymin=0,ymax=max(ccf_data$ccf),  col="red", linetype="dashed")+
+  #annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
+  #         y=max(ccf_data$ccf)+0.03, col="Red") +
+  #ylim(-0.2,0.4) +
+  annotate("pointrange", x=-37,
+           y=ccf_data$ccf[ccf_data$lag==-37],ymin=ccf_data$ccf[ccf_data$lag==-37],ymax=0,  col="red", linetype="dashed")+
+  labs(x="Lag (days)", y="CCF")+
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "none")+
+  scale_x_continuous(limits=c(-50,50))+
+  scale_y_continuous(limits=c(-1,1))
+
+ccf_plot_lockdown_3
+
+
+# Dividing lockdown 3 into 2 ----------------------------------------------
+
+
+## Prior to 16th Feb -------------------------------------------------------
+
+query=mobility_av
+reference=react_reprod
+mobility_place="Workplaces"
+region="ENGLAND"
+start_date = lockdown_3_start
+end_date = lockdown_3_start + days(41)
+end_date
+
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
+ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
+colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
+
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
+
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
+write.csv(ccf_data,ccf_data_name )
+
+ccf_plot <- ccf_data %>% filter(lag>=-100) %>%
+  ggplot(aes(x=lag))+
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
   geom_line(aes(y=ccf), color="royal blue") +
   geom_hline(yintercept=0, color="dark grey") +
   annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
@@ -391,66 +520,44 @@ ccf_data %>% filter(lag>=-100) %>%
   #ylim(-0.2,0.4) +
   labs(x="Lag (days)", y="CCF")+
   #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
+  ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region))+
   theme_light()
 
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 0 days
+ccf_plot
 
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-# 88.87 (whatever that means)
-dtw_lag$normalizedDistance
-# 0.419
-plot(dtw_lag$index1,dtw_lag$index2)
-
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-# 2.48 days 
+## After 16th Feb -------------------------------------------------------
 
 
+query=mobility_av
+reference=react_reprod
+mobility_place="Workplaces"
+region="ENGLAND"
+start_date = lockdown_3_start + days(41)
+end_date = lockdown_3_end
+end_date
 
-
-
-
-
-
-
-
-# CCF  between lockdown 1 and 2------------------------------------------------
-
-
-# Testing out with workplace mobility
-
-mobility <- mobility_av %>% 
-  filter(type_mobility == "workplaces_av") %>% 
-  filter(date >= lockdown_1_end, date <= lockdown_2_start) %>% 
-  filter(region=="ENGLAND") #%>%
-#select(mobility)
-
-reprod <- react_reprod %>% 
-  filter(d_comb >= lockdown_1_end, d_comb <= lockdown_2_start) #%>%
-#select(r)
-
-
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green")
-
-
-
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
 ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
 colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
 
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
 
-ccf_data %>% filter(lag>=-100) %>%
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
+write.csv(ccf_data,ccf_data_name )
+
+ccf_plot <- ccf_data %>% filter(lag>=-100) %>%
   ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
   geom_line(aes(y=ccf), color="royal blue") +
   geom_hline(yintercept=0, color="dark grey") +
   annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
@@ -460,81 +567,162 @@ ccf_data %>% filter(lag>=-100) %>%
   #ylim(-0.2,0.4) +
   labs(x="Lag (days)", y="CCF")+
   #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
+  ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region))+
   theme_light()
 
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 0 days
+ccf_plot
 
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-# 88.87 (whatever that means)
-dtw_lag$normalizedDistance
-# 0.419
-plot(dtw_lag$index1,dtw_lag$index2)
+# Lockdown 2 to 3, England, workplaces ----------------------------------------
 
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-# 13.6 days...a bit better
-
-# CCF  between lockdown 2 and 3------------------------------------------------
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_2_3")
+lag_combined(query=mobility_av, reference=react_reprod, 
+             mobility_place="Workplaces", start_date = lockdown_2_start, end_date = lockdown_3_end, region="ENGLAND")
 
 
-# Testing out with workplace mobility
+# Refining plots ----------------------------------------------------------
 
-mobility <- mobility_av %>% 
-  filter(type_mobility == "workplaces_av") %>% 
-  filter(date >= lockdown_2_end, date <= lockdown_3_start) %>% 
-  filter(region=="ENGLAND") #%>%
-#select(mobility)
+query=mobility_av
+reference=react_reprod 
+mobility_place="Workplaces"
+start_date = lockdown_2_start
+end_date = lockdown_3_end
+region="ENGLAND"
 
-reprod <- react_reprod %>% 
-  filter(d_comb >= lockdown_2_end, d_comb <= lockdown_3_start) #%>%
-#select(r)
+mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+# DTW function
+dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+print("Mean distance between indices is:")
+print(mean(dtw_lag$index1 - dtw_lag$index2))
+# DTW path plot
+dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+colnames(dtw_data)<- c("mob_index","r_index")
 
 
-# Plot min max normalised data so that on the same scale
-ggplot()+
-  geom_line(data=mobility, aes(x=date,y=min_max_normalise(mobility)), col="blue")+
-  geom_line(data=reprod, aes(x=d_comb,y=min_max_normalise(r)), col="green")
+dtw_plot_lockdown_2_3<-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+  geom_line(col="blue") + 
+  theme_bw() +
+  labs(x="Mobility series index",
+       y="R(t) series index")+
+  #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+  geom_abline(slope=1, intercept=0, col="red", linetype="dashed")+
+  theme(axis.line = element_line(colour = "black"))
 
+dtw_plot_lockdown_2_3
 
-
-# Calculate ccf
-ccf <- ccf(reprod$r,mobility$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
-
+#CCF
+ 
+lag_max=100
+ccf <- ccf(reprod$r,mob$mobility,lag.max=lag_max,na.action=na.pass, pl=FALSE)
 ccf_data <- as.data.frame(cbind(ccf$acf,ccf$lag))
 colnames(ccf_data)[1:2]<-c("ccf","lag")
+print("Max lag is at:")
+print(ccf_data$lag[which.max(ccf_data$ccf)])
+
+n <- nrow(mob)
+#k <- seq(1,lag_max,1)
+
+ccf_data <- ccf_data %>% 
+  mutate(upper_ci = qnorm(0.975)*sqrt(1/(n-abs(lag))),
+         lower_ci = -qnorm(0.975)*sqrt(1/(n-abs(lag))))
+ccf_data_name <- paste0("ccf_",region,"_",start_date,"_",end_date,"_",mobility_place,".csv")
 
 
-ccf_data %>% filter(lag>=-100) %>%
+ccf_plot_lockdown_2_3 <- ccf_data %>% filter(lag>=-100) %>%
   ggplot(aes(x=lag))+
-  # geom_area(aes(y=upper_ci), fill="light grey")+
-  # geom_area(aes(y=lower_ci), fill="light grey") +
+  geom_area(aes(y=upper_ci), fill="light grey")+
+  geom_area(aes(y=lower_ci), fill="light grey") +
   geom_line(aes(y=ccf), color="royal blue") +
   geom_hline(yintercept=0, color="dark grey") +
   annotate("pointrange", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf),ymin=0, ymax=max(ccf_data$ccf), col="red", linetype="dashed")+
-  annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
-           y=max(ccf_data$ccf)+0.02, col="Red") +
+           y=max(ccf_data$ccf),ymin=0,ymax=max(ccf_data$ccf),  col="red", linetype="dashed")+
+  #annotate("text", label="Max CCF", x=ccf_data$lag[which.max(ccf_data$ccf)],
+  #         y=max(ccf_data$ccf)+0.03, col="Red") +
   #ylim(-0.2,0.4) +
+  annotate("pointrange", x=-24,
+           y=ccf_data$ccf[ccf_data$lag==-24],ymin=ccf_data$ccf[ccf_data$lag==-24],ymax=0,  col="red", linetype="dashed")+
   labs(x="Lag (days)", y="CCF")+
-  #scale_x_continuous(breaks = scales::pretty_breaks(n = 14), expand=c(0,0)) +
-  ggtitle("CCF for England")+
-  theme_light()
+  theme_bw() +
+  theme(panel.border = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "none")+
+  scale_x_continuous(limits=c(-50,50))+
+  scale_y_continuous(limits=c(-1,1))
 
-max(ccf_data$ccf)
-ccf_data$lag[which.max(ccf_data$ccf)] # 1 days
+ccf_plot_lockdown_2_3
 
 
-dtw_lag <- dtw(normalize(mobility$mobility), normalize(reprod$r))
-dtw_lag$distance
-# 88.87 (whatever that means)
-dtw_lag$normalizedDistance
-# 0.419
-plot(dtw_lag$index1,dtw_lag$index2)
 
-dtw_lag <- dtw(min_max_normalise(mobility$mobility), min_max_normalise(reprod$r))
-dtw_lag$distance
-# 4 days??
+# Combining plots ---------------------------------------------------------
 
+
+plot_grid(dtw_plot_lockdown_1,
+          dtw_plot_lockdown_2,
+          dtw_plot_lockdown_3,
+          ccf_plot_lockdown_1,
+          ccf_plot_lockdown_2,
+          ccf_plot_lockdown_3,
+          nrow=2, align="hv")
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results")
+ggsave(file="ccf_dtw_multiplot.png", plot_grid(dtw_plot_lockdown_1,
+                                                              dtw_plot_lockdown_2,
+                                                              dtw_plot_lockdown_3,
+                                                              ccf_plot_lockdown_1,
+                                                              ccf_plot_lockdown_2,
+                                                              ccf_plot_lockdown_3,
+                                                              nrow=2, align="hv"), width=265, height=154, units="mm") 
+
+
+
+
+# Looking at residential and DTW -----------------------------------------------
+ # Exploring as not sure what to expect as this is an inverse relationship, so shapes would be very different...
+
+query=mobility_av
+reference=react_reprod
+mobility_place="Residential"
+start_date=lockdown_3_start
+end_date=lockdown_3_end
+region="ENGLAND"
+
+  mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
+  reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
+  # DTW function
+  dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+  print("Mean distance between indices is:")
+  print(mean(dtw_lag$index1 - dtw_lag$index2))
+  # DTW path plot
+  dtw_data <- as.data.frame(cbind(dtw_lag$index1, dtw_lag$index2))
+  colnames(dtw_data)<- c("mob_index","r_index")
+
+  dtw_plot <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
+    geom_line(col="blue") + 
+    theme_bw() +
+    labs(x="Mobility series index",
+         y="R(t) series index")+
+    #ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region)) +
+    geom_abline(slope=1, intercept=0, col="red", linetype="dashed")
+  dtw_plot
+
+  
+  mob <- mob[c("date" ,"mobility" , "type_mobility")]
+  colnames(mob) <- c("date_series" , "series", "type")
+  mob$series <- normalize(mob$series)
+  
+  reprod <- reprod[c("r","d_comb")]
+  reprod$type <- "R(t)"
+  colnames(reprod) <- c("series","date_series","type")
+  reprod$series <- normalize(reprod$series)
+  
+  data <- rbind(mob, reprod)
+  plot_series <- ggplot(data)+
+    geom_line(aes(x=date_series,y=series, col=type))+
+    theme_light()+
+    labs(y="Normalised time-series", x="")+
+    ggtitle(paste0("Mobility: ", mobility_place,", Start date: ", start_date, ", End date:", end_date, ", Region: " , region))+
+    theme(plot.title = element_text(hjust = 0.5),legend.position = "right",
+          panel.border=element_blank(),
+          axis.line = element_line(colour = "black"),
+          legend.title = element_blank())
+  plot_series
