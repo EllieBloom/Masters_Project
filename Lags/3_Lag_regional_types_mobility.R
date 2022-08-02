@@ -46,10 +46,10 @@ types_mobility <- c("retail_recreation_av", "grocery_pharmacy_av", "parks_av","t
 
 mobility_av <- mobility_av %>% 
   mutate(type_mobility = 
-           case_when(type_mobility=="retail_recreation_av"~"Retail & recreation" ,
-                     type_mobility=="grocery_pharmacy_av"~ "Grocery & pharmacy",
+           case_when(type_mobility=="retail_recreation_av"~"Retail & Recreation" ,
+                     type_mobility=="grocery_pharmacy_av"~ "Grocery & Pharmacy",
                      type_mobility=="parks_av"~ "Parks",
-                     type_mobility=="transit_stations_av"~ "Transit stations",
+                     type_mobility=="transit_stations_av"~ "Transit Stations",
                      type_mobility=="workplaces_av"~ "Workplaces",
                      type_mobility=="residential_av"~ "Residential"))
 
@@ -140,8 +140,6 @@ confint<- confint %>%
 
 
 
-library(scales)
-show_col(hue_pal()(6))
 
 library(RColorBrewer)
 
@@ -161,17 +159,22 @@ display.brewer.pal(9, "Paired")
 brewer.pal(9, "Paired")
 
 colours <- c("#FB9A99","#CAB2D6", "#33A02C","#FF7F00","#A6CEE3","#1F78B4","#FDBF6F", "#B2DF8A","#E31A1C","black")
+thickness <- c(rep(0.5,9),1)
+
+
+## Faceted by type of mobility
 
 ccf_plot <- ccf_summary %>% filter(!str_detect(type_mobility,"Parks")) %>% #,region!="England"
   ggplot(aes(x=lag))+
     geom_area(data=confint,aes(x=lag,y=upper_ci), fill="light gray", alpha=0.5)+
     geom_area(data=confint,aes(x=lag,y=lower_ci), fill="light gray", alpha=0.5)+
-    geom_line(aes(y=ccf, color=region)) +
+    geom_line(aes(y=ccf, color=region, size=region)) +
     geom_hline(yintercept = 0, col="gray")+
     geom_vline(xintercept=0, col="gray") +
     ylim(-1,1)+
     #scale_colour_brewer(palette="Paired")+
     scale_color_manual(values=colours)+
+    scale_size_manual(values=thickness)+
     facet_wrap(~type_mobility)+
     theme_bw()+
     labs(y="CCF", x="Lag (days)")+
@@ -185,25 +188,65 @@ ccf_plot <- ccf_summary %>% filter(!str_detect(type_mobility,"Parks")) %>% #,reg
           panel.grid.minor = element_blank())
 
 ccf_plot
-
 setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/regional")
 ggsave("ccf_plot_regional_mobility_types.png",ccf_plot)
 
-ccf_plot_england <- ccf_summary %>% filter(!str_detect(type_mobility,"Parks"),region=="England") %>%
+
+## Faceted by region
+
+
+library(scales)
+show_col(hue_pal()(6))
+
+mobility_colours <- c("#B79F00", "#F564E3", "#F8766D", "#00BFC4", "#619CFF")
+
+ccf_plot_region <- ccf_summary %>% filter(!str_detect(type_mobility,"Parks"), region!="England") %>% 
   ggplot(aes(x=lag))+
-  geom_area(data=confint,aes(x=lag,y=upper_ci), fill="light gray")+
-  geom_area(data=confint,aes(x=lag,y=lower_ci), fill="light gray")+
+  geom_area(data=confint,aes(x=lag,y=upper_ci), fill="light gray", alpha=0.5)+
+  geom_area(data=confint,aes(x=lag,y=lower_ci), fill="light gray", alpha=0.5)+
   geom_line(aes(y=ccf, color=type_mobility)) +
   geom_hline(yintercept = 0, col="gray")+
   geom_vline(xintercept=0, col="gray") +
   ylim(-1,1)+
-  scale_color_manual(values=colours)+
+  #scale_colour_brewer(palette="Paired")+
+  scale_color_manual(values=mobility_colours)+
+  #scale_size_manual(values=thickness)+
+  facet_wrap(~region)+
+  theme_bw()+
+  labs(y="CCF", x="Lag (days)")+
+  theme(legend.title=element_blank(),
+        legend.position = "none",
+        strip.background=element_rect(color="white", fill="white"),
+        strip.text=element_text(color="black", face="bold"),
+        axis.line = element_line(colour = "black"),
+        panel.border = element_rect(colour="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+ccf_plot_region
+
+
+
+
+
+# For England only - lines = mobility types
+
+ccf_plot_england <- ccf_summary %>% filter(!str_detect(type_mobility,"Parks"),region=="England") %>%
+  ggplot(aes(x=lag))+
+  geom_area(data=confint,aes(x=lag,y=upper_ci), fill="light gray", alpha=0.5)+
+  geom_area(data=confint,aes(x=lag,y=lower_ci), fill="light gray", alpha=0.5)+
+  geom_line(aes(y=ccf, color=type_mobility)) +
+  geom_hline(yintercept = 0, col="gray")+
+  geom_vline(xintercept=0, col="gray") +
+  ylim(-1,1)+
+  scale_color_manual(values=mobility_colours)+
   facet_wrap(~region)+
   theme_bw()+
   labs(y="CCF", x="Lag (days)")+
   theme(legend.position = "bottom",
+        legend.title=element_blank(),
         strip.background=element_rect(color="white", fill="white"),
-        strip.text=element_text(color="black", face="bold", size=12),
+        strip.text=element_text(color="black", face="bold", size=10),
         axis.line = element_line(colour = "black"),
         panel.border = element_rect(colour="black"),
         panel.grid.major = element_blank(),
@@ -216,7 +259,7 @@ ggsave("ccf_plot_england_mobility_types.png",ccf_plot_england)
 
 library(cowplot)
 plot_grid(ccf_plot_england,
-             ccf_plot, nrow=2,
+             ccf_plot_region, nrow=2,
              rel_heights=c(1,3))
 
 
@@ -226,12 +269,14 @@ ggsave(file="multiplot_ccf_regional.png", plot_grid(ccf_plot_england,
                                                rel_heights=c(1,3)), width=220, height=300, units="mm") 
 
 
+
 # Putting R number at the top instead of England
 
 r_plot_with_legend <- react_reprod_regional %>% filter(d_comb>=lockdown_3_start, d_comb<=lockdown_3_end) %>%
   ggplot()+
-  geom_line(aes(x=d_comb,y=r, col=reg_char))+
+  geom_line(aes(x=d_comb,y=r, col=reg_char, size=reg_char))+
   scale_color_manual(values=colours)+
+  scale_size_manual(values=thickness)+
   geom_hline(yintercept = 1, col="gray")+
   xlim(lockdown_3_start,lockdown_3_end)+
   scale_x_date(date_labels="%b %Y")+
@@ -244,8 +289,11 @@ r_plot_with_legend <- react_reprod_regional %>% filter(d_comb>=lockdown_3_start,
       legend.title=element_blank(),
       plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"))
 
+r_plot_with_legend
+
 r_plot_no_legend <- r_plot_with_legend + theme(legend.position = "none")
 
+r_plot_no_legend
 
 # Alternative multiplot
 
@@ -255,7 +303,7 @@ plot_grid(r_plot_no_legend,
 
 
 # Manually add legend later
-library(ggpubr)
+library(ggpubr) 
 legend <- get_legend(r_plot_with_legend)
 as_ggplot(legend)
 
@@ -266,6 +314,25 @@ ggsave(file="multiplot_ccf_regional_reproduction.png", plot_grid(r_plot_no_legen
                                                                   width=220, height=250, units="mm") 
 ggsave("regional_legend.png",as_ggplot(legend))
 
+
+
+# By region but with R number
+
+library(cowplot)
+plot_grid(r_plot_with_legend,
+          ccf_plot_region, 
+          ccf_plot_england,
+          nrow=3,
+          rel_heights=c(2,3,1.5))
+
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/regional")
+ggsave(file="multiplot_ccf_3parts.png", plot_grid(r_plot_with_legend,
+                                                  ccf_plot_region, 
+                                                  ccf_plot_england,
+                                                  nrow=3,
+                                                  rel_heights=c(2,3,1.5)),
+       width=300, height=400, units="mm") 
 
 # DTW ---------------------------------------------------------------------
 
