@@ -15,6 +15,7 @@ library(gtsummary)
 library(zoo)
 library(reshape2)
 library(lme4)
+library(gridExtra) # for grid.arrange
 
 
 
@@ -256,17 +257,7 @@ workplaces_model_1 <- lm(workplaces ~ day + bank_holiday + days_since_lockdown, 
 google_england_lockdown1$workplaces_pred_1 <- predict(workplaces_model_1)
 
 
-
-ggplot(data=google_england_lockdown1, aes(x=date,y=workplaces)) +
-  geom_line(aes(color="Mobility")) + 
-  geom_line(aes(x=date, y=workplaces_pred_1,color="Linear model"))+
-  scale_color_manual(name="",
-                     breaks=c("Mobility","Linear model","Smoothed line"),
-                     values=c("Mobility"="Dark blue","Linear model"="Red")) +
-  xlab("Date (2020)") +
-  ylab("Change from baseline (%)") +
-  ggtitle("Workplaces mobility") +
-  theme_light()  
+  
 
 
 
@@ -307,16 +298,6 @@ google_england_lockdown2$workplaces_pred_2 <- predict(workplaces_model_2)
 
 
 
-ggplot(data=google_england_lockdown2, aes(x=date,y=workplaces)) +
-  geom_line(aes(color="Mobility")) + 
-  geom_line(aes(x=date, y=workplaces_pred_2,color="Linear model"))+
-  scale_color_manual(name="",
-                     breaks=c("Mobility","Linear model","Smoothed line"),
-                     values=c("Mobility"="Dark blue","Linear model"="Red")) +
-  xlab("Date (2020)") +
-  ylab("Change from baseline (%)") +
-  ggtitle("Workplace mobility") +
-  theme_light()  
 
 ### Lockdown 3 --------------------------------------------------------------
 
@@ -356,16 +337,91 @@ google_england_lockdown3$workplaces_pred_1 <- predict(workplaces_model_3)
 
 
 
-ggplot(data=google_england_lockdown3, aes(x=date,y=workplaces)) +
-  geom_line(aes(color="Mobility")) + 
-  geom_line(aes(x=date, y=workplaces_pred_1,color="Linear model"))+
-  scale_color_manual(name="",
-                     breaks=c("Mobility","Linear model","Smoothed line"),
-                     values=c("Mobility"="Dark blue","Linear model"="Red")) +
-  xlab("Date (2020)") +
-  ylab("Change from baseline (%)") +
-  ggtitle("Workplaces mobility") +
-  theme_light()  
+
+
+
+# Plots
+
+# Lockdown 1
+
+
+
+plot_workplace_lockdown1 <- ggplot(data=google_england_lockdown1, aes(x=date,y=workplaces)) +
+                                      geom_line(aes(color="Workplace mobility"), alpha=0.9) + 
+                                      geom_line(aes(x=date, y=workplaces_pred_1,color="Linear model"), linetype="dashed", alpha=0.9)+
+                                      scale_color_manual(name="",
+                                                         breaks=c("Workplace mobility","Linear model"),
+                                                         values=c("Workplace mobility"="#619CFF","Linear model"="Red")) +
+                                      scale_x_date(date_labels="%b %y")+
+                                      xlab("") +
+                                      ylab("Workpalce mobility compared to baseline (%)") +
+                                      ylim(-90,-10) +
+                                      ggtitle("A") +
+                                      labs(caption="Lockdown 1") +
+                                      theme_bw() +
+                                      theme(legend.position = "none",
+                                            panel.border = element_blank(),
+                                            panel.grid.major = element_blank(),
+                                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+                                            plot.title = element_text(size=22),
+                                            plot.caption.position="panel",
+                                            plot.caption = element_text(hjust = 0.5))
+
+# Lockdown 2 
+
+plot_workplace_lockdown2 <- ggplot(data=google_england_lockdown2, aes(x=date,y=workplaces)) +
+                                      geom_line(aes(color="Raw data"), alpha=0.9) + 
+                                      geom_line(aes(x=date, y=workplaces_pred_2,color="Fitted linear model"), linetype="dashed", alpha=0.9)+
+                                      scale_color_manual(name="",
+                                                         breaks=c("Raw data","Fitted linear model"),
+                                                         values=c("Raw data"="#619CFF","Fitted linear model"="Red")) +
+                                      scale_x_date(date_labels="%d %b %y")+
+                                      xlab("") +
+                                      ylab("") +
+                                      ylim(-90,-10) +
+                                      ggtitle("B") +
+                                      labs(caption="Lockdown 2") +
+                                      theme_bw() +
+                                      theme(legend.position = c(0.5,0.95),
+                                            panel.border = element_blank(),
+                                            panel.grid.major = element_blank(),
+                                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+                                            plot.title = element_text(size=22),
+                                            plot.caption.position="panel",
+                                            plot.caption = element_text(hjust = 0.5))
+
+# Lockdown 3
+
+plot_workplace_lockdown3 <- ggplot(data=google_england_lockdown3, aes(x=date,y=workplaces)) +
+                                    geom_line(aes(x=date, y=workplaces_pred_1,color="Linear model"), linetype="dashed", alpha=0.9)+
+                                    geom_line(aes(color="Workplace mobility"), alpha=0.9) + 
+                                    scale_color_manual(name="",
+                                                       breaks=c("Workplace mobility","Linear model"),
+                                                       values=c("Workplace mobility"="#619CFF","Linear model"="Red")) +
+                                    scale_x_date(date_labels="%b %y") +
+                                    xlab("") +
+                                    ylab("") +
+                                    ylim(-90,-10) +
+                                    ggtitle("C") +
+                                    labs(caption="Lockdown 3")+
+                                    theme_bw() +
+                                    theme(legend.position = "none",
+                                          panel.border = element_blank(),
+                                          panel.grid.major = element_blank(),
+                                          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+                                          plot.title = element_text(size=22),
+                                          plot.caption.position="panel",
+                                          plot.caption = element_text(hjust = 0.5))
+
+
+grid.arrange(plot_workplace_lockdown1,plot_workplace_lockdown2,plot_workplace_lockdown3, nrow=1)
+
+# Saving (need to use arrangeGrob here)
+g <- arrangeGrob(plot_workplace_lockdown1,plot_workplace_lockdown2,plot_workplace_lockdown3, nrow=1)
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
+ggsave(file="line_model_fit_workplace.png", g) #saves g
+
+
 
 
 
@@ -421,24 +477,51 @@ for (i in 1:length(mobility_types)){
   #saveRDS(coefs_confint,confint_name)
 }
 
-# Saving the RDSs manually - fails for some n- leaving out for the moment
-# i=6
-# period <- "Lockdown_1"
-# start_date <- lockdown_1_start
-# end_date <- lockdown_1_end
-# mobility_type <- mobility_types[i]
-# mobility_type_neat <- mobility_types_neat[i]
-# data <- google_regional_england %>% filter(date>=start_date, date<=end_date)
-# data$days_since_lockdown <- as.numeric(data$date - start_date)
-# models <- lmList(eval(parse(text=mobility_types[i])) ~ day + bank_holiday + days_since_lockdown | sub_region_1, data=data)
-# models_coefs<-coef(models, augFrame = TRUE)
-# col_order <-c("(Intercept)", "days_since_lockdown", "bank_holiday1",
-#               "dayMonday","dayTuesday", "dayWednesday", 
-#               "dayThursday",  "dayFriday","daySaturday")
-# 
-# coefs_confint <- summary(models)$coef
-# confint_name <- paste0("confint_england_regional_",period,"_",mobility_type_neat,".rds")
-# saveRDS(coefs_confint,confint_name)
+
+
+# Different loop just for workplaces to get CIs and acutally works...
+
+workplace_lockdown1_regional_summary <- NA
+
+for (i in 1:length(england_regions)){
+  start_date <- lockdown_1_start
+  end_date <- lockdown_1_end
+  mobility_type <- "workplaces_percent_change_from_baseline"
+  region_interest <- england_regions[i]
+  data <- google_regional_england %>% filter(date>=start_date, date<=end_date,sub_region_1==region_interest)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown1_regional_summary<- rbind(workplace_lockdown1_regional_summary, model_summary)
+}
+
+
+workplace_lockdown1_regional_summary <- workplace_lockdown1_regional_summary[-1,]
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown1_regional_summary,"workplace_lockdown1_regional_summary.csv")
+
+
+
+# York
+start_date <- lockdown_1_start
+end_date <- lockdown_1_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="York") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+confint(model) #0.198-0.252
+
+# Isle of Whight
+start_date <- lockdown_1_start
+end_date <- lockdown_1_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="Isle of Wight") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+summary(model)
+confint(model) # 0.321-0.386
 
 
 
@@ -464,6 +547,51 @@ for (i in 1:length(mobility_types)){
   write.csv(models_coefs,results_name)
 }
 
+# Different loop just for workplaces to get CIs and acutally works...
+
+workplace_lockdown2_regional_summary <- NA
+
+for (i in 1:length(england_regions)){
+  start_date <- lockdown_2_start
+  end_date <- lockdown_2_end
+  mobility_type <- "workplaces_percent_change_from_baseline"
+  region_interest <- england_regions[i]
+  data <- google_regional_england %>% filter(date>=start_date, date<=end_date,sub_region_1==region_interest)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(workplaces_percent_change_from_baseline~ day + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown2_regional_summary<- rbind(workplace_lockdown2_regional_summary, model_summary)
+}
+
+
+workplace_lockdown2_regional_summary <- workplace_lockdown2_regional_summary[-1,]
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown2_regional_summary,"workplace_lockdown2_regional_summary.csv")
+
+
+
+# Medway
+start_date <- lockdown_2_start
+end_date <- lockdown_2_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="Medway") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day  + days_since_lockdown, data=data)
+summary(model)
+confint(model) #-0.111-0.029
+
+#Warrington
+start_date <- lockdown_2_start
+end_date <- lockdown_2_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="Warrington") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day  + days_since_lockdown, data=data)
+summary(model)
+confint(model) #0.212-0.417
+
 ## Lockdown 3 --------------------------------------------------------------
 
 
@@ -485,8 +613,52 @@ for (i in 1:length(mobility_types)){
   write.csv(models_coefs,results_name)
 }
 
+# Different loop just for workplaces to get CIs and acutally works...
+
+workplace_lockdown3_regional_summary <- NA
+
+for (i in 1:length(england_regions)){
+  start_date <- lockdown_3_start
+  end_date <- lockdown_3_end
+  mobility_type <- "workplaces_percent_change_from_baseline"
+  region_interest <- england_regions[i]
+  data <- google_regional_england %>% filter(date>=start_date, date<=end_date,sub_region_1==region_interest)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown3_regional_summary<- rbind(workplace_lockdown3_regional_summary, model_summary)
+}
 
 
+workplace_lockdown3_regional_summary <- workplace_lockdown3_regional_summary[-1,]
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown3_regional_summary,"workplace_lockdown3_regional_summary.csv")
+
+
+
+
+# Nottingham
+start_date <- lockdown_3_start
+end_date <- lockdown_3_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="Nottingham") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+summary(model)
+confint(model) #0.070-0.106 
+
+
+# Isle of Whight
+start_date <- lockdown_3_start
+end_date <- lockdown_3_end
+data <- google_regional_england %>% filter(date>=start_date, date<=end_date, sub_region_1=="Isle of Wight") 
+data$days_since_lockdown <- as.numeric(data$date - start_date)
+model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
+summary(model)
+confint(model) # 0.209-0.262
 
 
 # For whole period - England ------------------------------------------------------
@@ -536,11 +708,43 @@ England_whole_summary
 setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression")
 write.csv(England_whole_summary,"England-total_whole_time.csv")
 
+# PLOT
+# google_england_w <- google_england %>% filter(date>=lockdown_3_start, date<= lockdown_3_end)
+# google_england_lockdown3$days_since_lockdown <- as.numeric(google_england_lockdown3$date - lockdown_3_start)
+# workplaces_model_3 <- lm(workplaces ~ day + bank_holiday + days_since_lockdown, data=google_england_lockdown3)
+# google_england_lockdown3$workplaces_pred_1 <- predict(workplaces_model_3)
+start_date = lockdown_1_start
+end_date = lockdown_3_end
+google_whole_model <- google_england %>% filter(date>=start_date,date<= end_date)
+google_whole_model$days_since_start <- as.numeric(google_whole_model$date - start_date)
+model <- lm(workplaces_av ~  days_since_start +lockdown1*days_since_start + lockdown2*days_since_start + lockdown3*days_since_start, data=google_whole_model)
+google_whole_model$workplaces_pred <- predict(model)
+
+## Plot for whole period ---------------------------------------------------
 
 
 
+plot_workplace_whole <- ggplot(data=google_whole_model, aes(x=date,y=workplaces_av)) +
+  geom_line(aes(color="7-day moving average"), alpha=0.9) + 
+  geom_line(aes(x=date, y=workplaces_pred,color="Fitted linear model"), linetype="dashed", alpha=0.9)+
+  scale_color_manual(name="",
+                     breaks=c("7-day moving average","Fitted linear model"),
+                     values=c("7-day moving average"="#619CFF","Fitted linear model"="Red")) +
+  scale_x_date(date_labels="%b %y")+
+  ylab("Workpalce mobility compared to baseline (%)") +
+  xlab("") +
+  ylim(-90,-10) +
+  theme_bw() +
+  theme(legend.position = c(0.5,0.95),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(size=22),
+        plot.caption.position="panel",
+        plot.caption = element_text(hjust = 0.5))
 
-
+plot_workplace_whole
+ggsave("line_model_fit_whole_period_workplace.png", plot_workplace_whole)
 
 # For whole period - regional ---------------------------------------------
 

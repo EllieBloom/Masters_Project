@@ -34,21 +34,28 @@ eng$rgn15nm
 
 library(RColorBrewer)
 
-ggplot(eng, aes(fill = Region)) + 
-  geom_sf() +
-  scale_fill_brewer(palette="Paired") +
-  theme_bw() +
-  guides(fill=guide_legend(title="Region"))+
-  theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.x = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.text.y = element_blank(),
-    legend.position = c(0.17,0.8),
-    legend.key = element_rect(fill = "transparent")
-  ) 
+map_plot <- ggplot(eng, aes(fill = Region)) + 
+            geom_sf() +
+            scale_fill_brewer(palette="Paired") +
+            theme_bw() +
+            guides(fill=guide_legend(title=""))+
+            theme(
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.text.x = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.text.y = element_blank(),
+              legend.position = c(0.05,0.65),
+              legend.key = element_rect(fill = "transparent"),
+              panel.border = element_blank(),
+              legend.text=element_text(size=15)
+            ) 
+
+map_plot
+
+setwd("~/Desktop/Masters/Project/Analysis/Descriptive/Ouputs")
+ggsave("map_plot.png",map_plot)
 
 
 # Without legend

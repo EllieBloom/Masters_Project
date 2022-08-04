@@ -28,8 +28,8 @@ google_england <- readRDS("/Users/elliebloom/Desktop/Masters/Project/Analysis/Ma
 # Inputting useful dates --------------------------------------------------
 
 
-start_date_default <- min(google_england$date)
-end_date_default <-  max(google_england$date)
+start_date_default <- lockdown_1_start
+end_date_default <-  lockdown_3_end
 
 # Useful dates
 lockdown_1_start <- as.Date("2020-03-26","%Y-%m-%d")
@@ -64,7 +64,7 @@ get_cormat <- function(data, region_interest,start_date=start_date_default, end_
   print("Correlation  matrix is for:")
   print(unique(data_filter$region))
   data_movingav <- data_filter[,(10:15)]
-  colnames(data_movingav) <- c("Retail","Grocery and Pharmacy","Parks",
+  colnames(data_movingav) <- c("Retail and Recreation","Grocery and Pharmacy","Parks",
                                "Transit Stations", "Workplaces", "Residential")
   data_movingav <- data_movingav[-c(1:3),]
   n <- nrow(data_movingav)
@@ -268,3 +268,112 @@ cor_summary_lockdown_3
 
 setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Corr_matrices")
 write.csv(cor_summary_lockdown_3,"Corr_England_lockdown_3.csv")
+
+
+
+
+# Plot for England --------------------------------------------------------
+
+# From 8_Googl_Descriptive England
+plot_baseline_lockdowns
+
+google_england
+
+
+## England whole period ------------------------------------------
+region="ENGLAND"
+region_neat="England"
+period="Whole period"
+cormat <- get_cormat(data=google_england, region_interest=region)
+colnames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+rownames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
+heatmap_england_whole <- heatmap + ggtitle("") + labs(subtitle="")
+heatmap_england_whole
+
+## England lockdown 1 ---------------------------------------------
+region="ENGLAND"
+region_neat="England"
+period="Lockdown 1"
+cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_1_start, end_date=lockdown_1_end)
+colnames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+rownames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
+heatmap_england_lockdown1 <- heatmap + ggtitle("") + labs(subtitle="") + theme(legend.position = "none")
+heatmap_england_lockdown1
+
+## England lockdown 2 ---------------------------------------------
+region="ENGLAND"
+region_neat="England"
+period="Lockdown 2"
+cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_2_start, end_date=lockdown_2_end)
+colnames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+rownames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
+heatmap_england_lockdown2 <- heatmap + ggtitle("") + labs(subtitle="") + theme(legend.position = "none")
+heatmap_england_lockdown2
+
+## England lockdown 2 ---------------------------------------------
+region="ENGLAND"
+region_neat="England"
+period="Lockdown 3"
+cormat <- get_cormat(data=google_england, region_interest=region,start_date=lockdown_3_start, end_date=lockdown_3_end)
+colnames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+rownames(cormat) <-c("Retail & Recreation", "Grocery & Pharmacy", "Parks", "Transit Stations", 
+                     "Workplaces", "Residential")
+heatmap <- convert_cormat_heatmap(cormat,region_neat,period)
+heatmap_england_lockdown3 <- heatmap + ggtitle("") + labs(subtitle="") + theme(legend.position = "none")
+heatmap_england_lockdown3
+
+
+# All of the plots to use
+plot_baseline_lockdowns_edit <- plot_baseline_lockdowns + theme(legend.position = "top")
+heatmap_england_whole_edit<- heatmap_england_whole + theme(axis.text.x=element_text(size=10),
+                                                           axis.text.y=element_text(size=10),
+                                                           title =element_text(size=16))+
+                                                            ggtitle("B")
+heatmap_england_lockdown1_edit <- heatmap_england_lockdown1 + theme(axis.text.x=element_text(size=10),
+                                                                    axis.text.y=element_text(size=10),
+                                                                    title =element_text(size=16))+
+                                                              ggtitle("C")
+heatmap_england_lockdown2_edit <- heatmap_england_lockdown2 + theme(axis.text.x=element_text(size=10),
+                                                                    axis.text.y=element_text(size=10),
+                                                                    title =element_text(size=16))+
+                                                              ggtitle("D")
+heatmap_england_lockdown3_edit <- heatmap_england_lockdown3 + theme(axis.text.x=element_text(size=10),
+                                                                    axis.text.y=element_text(size=10),
+                                                                    title =element_text(size=16))+
+                                                              ggtitle("E")
+
+
+
+# Constructing multiplot
+
+library(cowplot)
+
+bottom_row <- plot_grid(heatmap_england_whole_edit,
+                           heatmap_england_lockdown1_edit,
+                           heatmap_england_lockdown2_edit,
+                           heatmap_england_lockdown3_edit, align="v", nrow=1)
+bottom_row
+
+
+plot_baseline_lockdowns_title <- plot_baseline_lockdowns + ggtitle("A") +
+                                                          theme(plot.title = element_text(hjust = 0),
+                                                                title =element_text(size=16),
+                                                                axis.text = element_text(size=14))
+
+
+ggsave("corr_multiplot.png",plot_grid(plot_baseline_lockdowns_title,
+                                      bottom_row, nrow=2, align="v"),
+                            ,width=700, height=510, units="mm")
+
+
+

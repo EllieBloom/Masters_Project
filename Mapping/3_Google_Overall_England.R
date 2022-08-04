@@ -251,7 +251,7 @@ google_england_long %>% filter(region=="ENGLAND") %>%
 
 # Saving the data
 setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs")  
-write.csv(google_england_wide,"google_england_long.csv")
-saveRDS(google_england_wide,"google_england_long.rds")
+write.csv(google_england_long,"google_england_long.csv")
+saveRDS(google_england_long,"google_england_long.rds")
 
         

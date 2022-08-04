@@ -18,7 +18,7 @@ library(reshape)
 # Reading mapping data
 region_mapping <- read.csv("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs/region_county_popultion_lookup.csv")  
 
-region_mapping
+head(region_mapping)
 
 
 # Reading google data and small edits
@@ -159,8 +159,6 @@ for (i in 1:length(region_list)){
 
 
 
-
-
 # Reformatting output of the loop
 regional_summary<-as.data.frame(regional_summary)
 colnames(regional_summary) <-c("date","region","retail_recreation","grocery_pharmacy","parks","transit_stations","workplaces","residential")
@@ -185,6 +183,11 @@ regional_summary <- regional_summary %>%
 
 # Rolling averages needed too, need different for each region
 
+library(lubridate)
+str(regional_summary$date)
+regional_summary <- regional_summary[order(as.Date(regional_summary$date, format="%Y-%m-%d")),]
+head(regional_summary)
+
 region_list <- dput(unique(regional_summary$region))
 df_combined <- NA
 
@@ -207,9 +210,18 @@ regional_summary <- df_combined
 
 # Plotting to check
 
-ggplot(data=regional_summary, aes(x=date,y=residential_av,col=region))+
+
+plot <- regional_summary %>% filter(region=="LONDON") %>%
+    ggplot(aes(x=date,y=workplaces))+
+    geom_line()
+
+plot
+
+plot_av <- regional_summary %>% filter(region=="LONDON") %>%
+  ggplot(aes(x=date,y=workplaces_av))+
   geom_line()
 
+plot_av
 
 # Saving the wide dataset
 

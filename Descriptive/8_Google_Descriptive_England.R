@@ -49,17 +49,22 @@ plot_baseline <- ggplot(data=google_england, aes(x=date,y=mobility,color=type_mo
   ylab ("Mobility compared to baseline (%)") +
   ggtitle("") +
   labs(color = "") + # This means that the title for the legent is blank
-  scale_x_date(breaks = function(x) seq.Date(from = min(x), 
-                                             to = max(x), 
-                                             by = "3 months"),
-               minor_breaks = function(x) seq.Date(from = min(x), 
-                                                   to = max(x), 
-                                                   by = "1 months"),
-               date_labels="%b %Y",
-               limits=c(lockdown_1_start, lockdown_3_end)) +
+  #xlim(lockdown_1_start, lockdown_3_end) +
+  scale_x_date(date_labels="%b %y", expand=c(0,0), limits=c(lockdown_1_start,lockdown_3_end))+
+  scale_y_continuous(limit=c(-80,135), expand=c(0,0))+
+  # scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+  #                                            to = max(x), 
+  #                                            by = "3 months"),
+  #              minor_breaks = function(x) seq.Date(from = min(x), 
+  #                                                  to = max(x), 
+  #                                                  by = "1 months"),
+  #              date_labels="%b %Y",
+  #              limits=c(lockdown_1_start, lockdown_3_end)) +
   scale_color_hue(labels = labels)+
   theme_light() +
-  theme(plot.title = element_text(hjust = 0.5),legend.position = "right",
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top",
+        legend.text = element_text(size=16)
         panel.border=element_blank(),
         axis.line = element_line(colour = "black"))+
   geom_hline(yintercept=0, linetype="dashed", size=0.5, col="grey")
@@ -69,7 +74,6 @@ plot_baseline
 
 
 
-plot_baseline
 
 # Adding shaded areas for lockdowns
 plot_baseline_lockdowns <- plot_baseline + annotate("rect", xmin=lockdown_1_start, xmax = lockdown_1_end, ymin=-80, ymax=125, alpha=0.2) +
@@ -83,9 +87,9 @@ plot_baseline_lockdowns
 plot_baseline_lockdowns <- plot_baseline + annotate("rect", xmin=lockdown_1_start, xmax = lockdown_1_end, ymin=-80, ymax=125, alpha=0.2) +
                                             annotate("rect", xmin=lockdown_2_start, xmax = lockdown_2_end, ymin=-80, ymax=125, alpha=0.2) +
                                             annotate("rect", xmin=lockdown_3_start, xmax = lockdown_3_end, ymin=-80, ymax=125, alpha=0.2) +
-                                            annotate("text",x=lockdown_1_start+days(30), y=130, label="Lockdown 1", hjust=0, color="gray23") +
-                                            annotate("text",x=lockdown_2_start+days(12), y=130, label="Lockdown 2",  hjust=0.5, color="gray23") +
-                                            annotate("text",x=lockdown_3_start+days(40), y=130, label="Lockdown 3",  hjust=0, color="gray23") 
+                                            annotate("text",x=lockdown_1_start+days(37), y=130, label="Lockdown 1", hjust=0.5, color="gray23",size=7)+
+                                            annotate("text",x=lockdown_2_start+days(14), y=130, label="Lockdown 2",  hjust=0.5, color="gray23", size=7) +
+                                            annotate("text",x=lockdown_3_start+days(40), y=130, label="Lockdown 3",  hjust=0, color="gray23",size=7) 
 plot_baseline_lockdowns
 
 # Limit until the end of lockdown 3
@@ -111,13 +115,13 @@ plot_baseline <- ggplot(data=google_england_whole, aes(x=date,y=mobility,color=t
   ylab ("Mobility compared to baseline (%)") +
   ggtitle("") +
   labs(color = "") + # This means that the title for the legend is blank
-  scale_x_date(breaks = function(x) seq.Date(from = min(x), 
-                                             to = max(x), 
-                                             by = "3 months"),
-               minor_breaks = function(x) seq.Date(from = min(x), 
-                                                   to = max(x), 
-                                                   by = "1 months"),
-               date_labels="%b %Y") +
+  # scale_x_date(breaks = function(x) seq.Date(from = min(x), 
+  #                                            to = max(x), 
+  #                                            by = "3 months"),
+  #              minor_breaks = function(x) seq.Date(from = min(x), 
+  #                                                  to = max(x), 
+  #                                                  by = "1 months"),
+  #              date_labels="%b %Y") +
   scale_color_hue(labels = labels)+
   theme_light() +
   theme(plot.title = element_text(hjust = 0.5),legend.position = "bottom")+

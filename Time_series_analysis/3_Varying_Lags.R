@@ -219,25 +219,25 @@ dtw_multiplot <- ggplot2.multiplot("",plot1,plot2,plot3, cols=2)
 dtw_multiplot
 
 ##Attempting another type of plot
-
-mob_series <- as.data.frame(mob_series)
-colnames(mob_series)<-"series"
-mob_series$type <- "mobility"
-mob_series <- cbind(mob_series,date_series)
-
-prev_series <- as.data.frame(prev_series)
-colnames(prev_series)<-"series"
-prev_series$type <- "prev"
-prev_series <- cbind(prev_series,date_series)
-
-
-data_plot<- rbind(mob_series,prev_series)
-data_plot <- as.data.frame(data_plot)
-data_plot$type <- as.factor(data_plot$type)
-
-ggplot(data=data_plot,aes(x=date_series,y=series, color=type))+
-  geom_line()+
-  geom_line(aes(group=paired))
+# 
+# mob_series <- as.data.frame(mob_series)
+# colnames(mob_series)<-"series"
+# mob_series$type <- "mobility"
+# mob_series <- cbind(mob_series,date_series)
+# 
+# prev_series <- as.data.frame(prev_series)
+# colnames(prev_series)<-"series"
+# prev_series$type <- "prev"
+# prev_series <- cbind(prev_series,date_series)
+# 
+# 
+# data_plot<- rbind(mob_series,prev_series)
+# data_plot <- as.data.frame(data_plot)
+# data_plot$type <- as.factor(data_plot$type)
+# 
+# ggplot(data=data_plot,aes(x=date_series,y=series, color=type))+
+#   geom_line()+
+#   geom_line(aes(group=paired))
 
 # Can't get this to work - exporting the data to use in python instead
 
