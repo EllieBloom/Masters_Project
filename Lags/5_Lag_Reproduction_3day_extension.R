@@ -23,14 +23,16 @@ min_max_normalise <- function(x) {
 
 # Useful dates ------------------------------------------------------------
 
-lockdown_1_start <- as.Date("2020-03-26","%Y-%m-%d")
-lockdown_1_end <- as.Date("2020-06-15","%Y-%m-%d")
+days_window <- 3
 
-lockdown_2_start <- as.Date("2020-11-05","%Y-%m-%d")
-lockdown_2_end <- as.Date("2020-12-02","%Y-%m-%d")
+lockdown_1_start <- as.Date("2020-03-26","%Y-%m-%d") - days(days_window)
+lockdown_1_end <- as.Date("2020-06-15","%Y-%m-%d") + days(days_window)
 
-lockdown_3_start <- as.Date("2021-01-06","%Y-%m-%d")
-lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d")
+lockdown_2_start <- as.Date("2020-11-05","%Y-%m-%d") - days(days_window)
+lockdown_2_end <- as.Date("2020-12-02","%Y-%m-%d") + days(days_window)
+
+lockdown_3_start <- as.Date("2021-01-06","%Y-%m-%d") - days(days_window)
+lockdown_3_end <- as.Date("2021-04-21","%Y-%m-%d") + days(days_window)
 
 REACT_start <-as.Date("2020-05-01","%Y-%m-%d")
 
@@ -183,7 +185,7 @@ plot_period<- function(query=mobility_av, reference=react_reprod,
 
 # test in full
 
-setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results")
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension")
 lag_combined <- function(query=mobility_av, reference=react_reprod, 
                          mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND"){
   
@@ -197,7 +199,7 @@ lag_combined <- function(query=mobility_av, reference=react_reprod,
 
 # Whole period,  England, workplaces --------------------------------------
 
-setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Whole_period")
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Whole_period")
 lag_combined(query=mobility_av, reference=react_reprod, 
                       mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_3_end, region="ENGLAND")
 
@@ -238,7 +240,7 @@ region="ENGLAND"
 
 # Lockdown 1,  England, workplaces ----------------------------------------
 
-setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_1")
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_1")
 lag_combined(query=mobility_av, reference=react_reprod, 
              mobility_place="Workplaces", start_date = REACT_reprod_start, end_date = lockdown_1_end, region="ENGLAND")
 
@@ -247,7 +249,7 @@ lag_combined(query=mobility_av, reference=react_reprod,
 # Refining plots ----------------------------------------------------------
 
 query=mobility_av
-reference=react_reprod
+reference=react_reprod 
 mobility_place="Workplaces"
 start_date = REACT_reprod_start
 end_date = lockdown_1_end
@@ -275,6 +277,8 @@ dtw_plot_lockdown_1 <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
   theme(axis.line = element_line(colour = "black"),panel.border = element_blank())
 
 dtw_plot_lockdown_1
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_1")
+ggsave("plot_dtw_3day_lockdown1.png",dtw_plot_lockdown_1)
 
 # CCF
 
@@ -317,7 +321,7 @@ ccf_plot_lockdown_1
 
 # Lockdown 2,  England, workplaces ----------------------------------------
 
-setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_2")
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_2")
 lag_combined(query=mobility_av, reference=react_reprod, 
              mobility_place="Workplaces", start_date = lockdown_2_start, end_date = lockdown_2_end, region="ENGLAND")
 
@@ -353,6 +357,9 @@ dtw_plot_lockdown_2 <-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
         panel.border = element_blank())
 
 dtw_plot_lockdown_2
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_2")
+ggsave("plot_dtw_3day_lockdown2.png",dtw_plot_lockdown_2)
 
 # CCF
 
@@ -396,7 +403,7 @@ ccf_plot_lockdown_2
 
 # Lockdown 3,  England, workplaces ----------------------------------------
 
-setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results/Lockdown_3")
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_3")
 lag_combined(query=mobility_av, reference=react_reprod, 
              mobility_place="Workplaces", start_date = lockdown_3_start, end_date = lockdown_3_end, region="ENGLAND")
 
@@ -404,7 +411,7 @@ lag_combined(query=mobility_av, reference=react_reprod,
 
 # Refining plots ----------------------------------------------------------
 query=mobility_av
-reference=react_reprod 
+reference=react_reprod, 
 mobility_place="Workplaces"
 start_date = lockdown_3_start
 end_date = lockdown_3_end
@@ -433,6 +440,9 @@ dtw_plot_lockdown_3<-   ggplot(data=dtw_data, aes(x=mob_index, y=r_index))+
   
 
 dtw_plot_lockdown_3
+
+setwd("~/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_3day_extension/Lockdown_3")
+ggsave("plot_dtw_3day_lockdown3.png",dtw_plot_lockdown_3)
 
 # CCF
 

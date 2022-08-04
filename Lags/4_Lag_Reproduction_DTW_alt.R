@@ -77,7 +77,7 @@ dtw_open <- function(query=mobility_av, reference=react_reprod,
   mob <- query %>% filter(date>=start_date, date<=end_date, type_mobility == mobility_place, region=="ENGLAND")
   reprod <- reference %>% filter(d_comb>=start_date, d_comb <= end_date)
   # DTW function
-  dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r))
+  dtw_lag <- dtw(normalize(mob$mobility), normalize(reprod$r),step.pattern = asymmetric, open.begin=TRUE, open.end=TRUE)
   print("Mean distance between indices is:")
   print(mean(dtw_lag$index1 - dtw_lag$index2))
   print("Median distance between indices is:")
@@ -103,10 +103,25 @@ dtw_open <- function(query=mobility_av, reference=react_reprod,
 
 # Experimenting with open and close end arguments
 
-# Lockdown 3
+# Lockdown 1
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_open/Lockdown_1")
+dtw_open(query=mobility_av, reference=react_reprod, 
+         mobility_place="Workplaces", start_date=REACT_reprod_start, lockdown_1_end, region="ENGLAND")
 
+# Lockdown 2
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_open/Lockdown_2")
+dtw_open(query=mobility_av, reference=react_reprod, 
+         mobility_place="Workplaces", start_date=lockdown_2_start, lockdown_2_end, region="ENGLAND")
+
+# Lockdown 3
+setwd("/Users/elliebloom/Desktop/Masters/Project/Analysis/Lags/Outputs/dtw_results_open/Lockdown_3")
 dtw_open(query=mobility_av, reference=react_reprod, 
          mobility_place="Workplaces", start_date=lockdown_3_start, lockdown_3_end, region="ENGLAND")
+
+
+
+
+
 
 query=mobility_av
 reference=react_reprod
