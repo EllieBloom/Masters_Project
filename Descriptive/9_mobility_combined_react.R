@@ -93,7 +93,18 @@ plot_baseline_lockdowns
 plot_baseline_lockdowns
 
 
+# Looking at how much of the drop/rise falls outside of the 3 day period
 
+plot_baseline_lockdowns_3days <- plot_baseline_lockdowns +
+                                  geom_vline(xintercept = lockdown_1_start-days(3))+
+                                  geom_vline(xintercept = lockdown_1_end+days(3)) +
+                                  geom_vline(xintercept = lockdown_2_start-days(3))+
+                                  geom_vline(xintercept = lockdown_2_end+days(3)) +
+                                  geom_vline(xintercept = lockdown_3_start-days(3))+
+                                  geom_vline(xintercept = lockdown_3_end+days(3)) 
+                    
+
+plot_baseline_lockdowns_3days
 
 
 
