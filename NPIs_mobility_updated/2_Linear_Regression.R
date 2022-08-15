@@ -425,7 +425,7 @@ ggsave(file="line_model_fit_workplace.png", g) #saves g
 
 
 
-# Regions in England ------------------------------------------------------
+# Counties in England ------------------------------------------------------
 
 england_regions <- c("Bath and North East Somerset","Bedford", "Blackburn with Darwen",
                           "Blackpool", "Borough of Halton","Bracknell Forest","Brighton and Hove", 
@@ -659,6 +659,139 @@ data$days_since_lockdown <- as.numeric(data$date - start_date)
 model <- lm(workplaces_percent_change_from_baseline~ day + bank_holiday + days_since_lockdown, data=data)
 summary(model)
 confint(model) # 0.209-0.262
+
+
+
+
+
+
+
+# 9 regions in England ----------------------------------------------------
+
+# Loading regional data
+google_england_long <- read_rds("/Users/elliebloom/Desktop/Masters/Project/Analysis/Mapping/Outputs/google_england_long.rds")
+
+google_england_long <- google_england_long %>% filter(region!="ENGLAND")
+
+nine_regions <- dput(unique(google_england_long$region))
+
+
+# Adding other variables required
+google_england_long$bank_holiday <- ifelse(google_england_long$date %in% bank_holidays,1,0)
+google_england_long$bank_holiday <- as.factor(google_england_long$bank_holiday)
+
+# Adding days of the week into the google_gb dataset
+google_england_long$day <- weekdays(google_england_long$date)
+
+# Make into a factor
+google_england_long$day <- factor(google_england_long$day)
+
+# Sunday as reference category
+google_england_long$day <- relevel(google_england_long$day, ref="Sunday")
+str(google_england_long$day)
+
+
+
+
+
+## Lockdown 1 --------------------------------------------------------------
+
+
+workplace_lockdown1_nine_regions_summary <- NA
+
+for (i in 1:length(nine_regions)){
+  start_date <- lockdown_1_start
+  end_date <- lockdown_1_end
+  mobility_type <- "workplaces"
+  region_interest <-nine_regions[i]
+  data <- google_england_long %>% filter(date>=start_date, date<=end_date,region==region_interest, type_mobility==mobility_type)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(mobility~ day + bank_holiday + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown1_nine_regions_summary<- rbind(workplace_lockdown1_nine_regions_summary, model_summary)
+}
+
+
+workplace_lockdown1_nine_regions_summary <- workplace_lockdown1_nine_regions_summary[-1,]
+workplace_lockdown1_nine_regions_summary
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown1_nine_regions_summary,"workplace_lockdown1_nine_regions.csv")
+
+
+
+
+## Lockdown 2 --------------------------------------------------------------
+
+
+workplace_lockdown2_nine_regions_summary <- NA
+
+for (i in 1:length(nine_regions)){
+  start_date <- lockdown_2_start
+  end_date <- lockdown_2_end
+  mobility_type <- "workplaces"
+  region_interest <-nine_regions[i]
+  data <- google_england_long %>% filter(date>=start_date, date<=end_date,region==region_interest, type_mobility==mobility_type)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(mobility~ day + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown2_nine_regions_summary<- rbind(workplace_lockdown2_nine_regions_summary, model_summary)
+}
+
+
+workplace_lockdown2_nine_regions_summary <- workplace_lockdown2_nine_regions_summary[-1,]
+workplace_lockdown2_nine_regions_summary
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown2_nine_regions_summary,"workplace_lockdown2_nine_regions.csv")
+
+
+
+
+
+## Lockdown 3 --------------------------------------------------------------
+
+
+workplace_lockdown3_nine_regions_summary <- NA
+
+for (i in 1:length(nine_regions)){
+  start_date <- lockdown_3_start
+  end_date <- lockdown_3_end
+  mobility_type <- "workplaces"
+  region_interest <-nine_regions[i]
+  data <- google_england_long %>% filter(date>=start_date, date<=end_date,region==region_interest, type_mobility==mobility_type)
+  data$days_since_lockdown <- as.numeric(data$date - start_date)
+  model <- lm(mobility~ day + bank_holiday + days_since_lockdown, data=data)
+  model_coefs <- summary(model)$coef
+  model_cis <- confint(model)
+  model_summary <- as.data.frame(cbind(model_coefs,model_cis))
+  model_summary$region <- region_interest
+  workplace_lockdown3_nine_regions_summary<- rbind(workplace_lockdown3_nine_regions_summary, model_summary)
+}
+
+
+workplace_lockdown3_nine_regions_summary <- workplace_lockdown3_nine_regions_summary[-1,]
+workplace_lockdown3_nine_regions_summary
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Workplace_only")
+write.csv(workplace_lockdown3_nine_regions_summary,"workplace_lockdown3_nine_regions.csv")
+
+
+
+
+
+
+
+
+
+
+
 
 
 # For whole period - England ------------------------------------------------------
