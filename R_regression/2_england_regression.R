@@ -55,16 +55,30 @@ combined_england <- combined_england %>%
      mutate(variant = case_when(date>=as.Date("2021-01-01","%Y-%m-%d")~"Alpha",
                                 date< as.Date("2021-01-01","%Y-%m-%d")~"Original"))
 
+# Creating a new var if R>=1 or R<1
+# combined_england$r_range <- ifelse(combined_england$r>=1,">=1","<1")
+# combined_england$r_range <- as.factor(combined_england$r_range) 
+# str(combined_england$r_range)
+
+
+
+# Lockdown any variable
+# 
+# combined_england$lockdown_any <- ifelse(combined_england$lockdown=="No_lockdown",0,1)
+
+
  # Playing around with regression ------------------------------------------
 
 # Things to think about: should I be lagging in some way?
 # Should I be including date in some way?
 
-model <- lm(r ~  variant + lockdown + workplaces_av + residential_av + retail_recreation_av + grocery_pharmacy_av + transit_stations_av + cumVaccinationFirstDoseUptakeByPublishDatePercentage, data=combined_england)
+model <- lm(r ~  variant + lockdown_any + workplaces_av + residential_av + retail_recreation_av + grocery_pharmacy_av + transit_stations_av + cumVaccinationFirstDoseUptakeByPublishDatePercentage, data=combined_england)
 summary(model)$r.squared
 summary(model)$adj.r.squared
 model_results <- cbind(summary(model)$coef,confint(model))
 model_results
+
+tbl_regression(model)
 
 # QQplot looks ok-ish?
 plot(model,1) # shows homoskedasticity - non-linearity
@@ -93,7 +107,7 @@ plot(model_log,3) # ok - constant standardised residuals
 combined_england$r_pred <- exp(predict(model_log))
 
 ggplot(data=combined_england, aes(x=date))+
-  geom_line(aes(y=r), col="purple")+
+  geom_line(aes(y=r), col="blue")+
   geom_line(aes(y=r_pred), col="red", linetype="dashed")+
   theme_bw() +
   theme(legend.position = c(0.5,0.95),
@@ -107,5 +121,156 @@ ggplot(data=combined_england, aes(x=date))+
 # Can see in the model fit that it is missing things like holiday effects
 
 
-# Could look separately at each lockdown? Then combined again. Real limitation with lockdown 1 -> missing the first half
-# Looks to only fit well Lockdown 2?
+## Lockdown 1 only ---------------------------------------------------------
+
+combined_england_lockdown1 <- combined_england %>% filter(lockdown=="Lockdown1")
+
+model_log_l1 <-  lm(log(r) ~ workplaces_av + cumVaccinationFirstDoseUptakeByPublishDatePercentage, data=combined_england_lockdown1)
+summary(model_log_l1)$r.squared
+results_model_log_l1<- cbind(summary(model_log_l1)$coef,confint(model_log_l1))
+restuls_model_log_l1
+
+combined_england_lockdown1$r_pred_l1 <- exp(predict(model_log_l1))
+
+ggplot(data=combined_england_lockdown1, aes(x=date))+
+  geom_line(aes(y=r), col="blue")+
+  geom_line(aes(y=r_pred_l1), col="red", linetype="dashed")+
+  theme_bw() +
+  theme(legend.position = c(0.5,0.95),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(size=22),
+        plot.caption.position="panel",
+        plot.caption = element_text(hjust = 0.5))
+
+
+## Lockdown 2 only ---------------------------------------------------------
+
+combined_england_lockdown2 <- combined_england %>% filter(lockdown=="Lockdown2")
+
+model_log_l2 <-  lm(log(r) ~ workplaces_av + cumVaccinationFirstDoseUptakeByPublishDatePercentage, data=combined_england_lockdown2)
+summary(model_log_l2)$r.squared
+results_model_log_l2<- cbind(summary(model_log_l2)$coef,confint(model_log_l2))
+results_model_log_l2
+
+combined_england_lockdown2$r_pred_l2 <- exp(predict(model_log_l2))
+
+ggplot(data=combined_england_lockdown2, aes(x=date))+
+  geom_line(aes(y=r), col="blue")+
+  geom_line(aes(y=r_pred_l2), col="red", linetype="dashed")+
+  theme_bw() +
+  theme(legend.position = c(0.5,0.95),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(size=22),
+        plot.caption.position="panel",
+        plot.caption = element_text(hjust = 0.5))
+
+## Lockdown 3 only ---------------------------------------------------------
+
+combined_england_lockdown3 <- combined_england %>% filter(lockdown=="Lockdown3")
+
+model_log_l3 <-  lm(log(r) ~ retail_recreation_av + cumVaccinationFirstDoseUptakeByPublishDatePercentage  + cumVaccinationSecondDoseUptakeByPublishDatePercentage, data=combined_england_lockdown3)
+summary(model_log_l3)$r.squared
+results_model_log_l3<- cbind(summary(model_log_l3)$coef,confint(model_log_l3))
+results_model_log_l3
+
+combined_england_lockdown3$r_pred_l3 <- exp(predict(model_log_l3))
+
+ggplot(data=combined_england_lockdown3, aes(x=date))+
+  geom_line(aes(y=r), col="blue")+
+  geom_line(aes(y=r_pred_l3), col="red", linetype="dashed")+
+  theme_bw() +
+  theme(legend.position = c(0.5,0.95),
+        panel.border = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),
+        plot.title = element_text(size=22),
+        plot.caption.position="panel",
+        plot.caption = element_text(hjust = 0.5))
+
+
+
+
+
+# Try logistic regression -------------------------------------------------
+
+combined_england
+
+
+
+model_logistic <- glm(r_range ~  cumVaccinationFirstDoseUptakeByPublishDatePercentage + workplaces + lockdown_any, data=combined_england, family="binomial")
+
+results_model_logistic<- cbind(summary(model_logistic)$coef,confint(model_logistic))
+
+tbl_regression(model_logistic, exponentiate = TRUE)
+
+
+
+## Lockdown 1 only ---------------------------------------------------------
+
+
+combined_england_lockdown1
+
+model_logistic_l1 <- glm(r_range ~  cumVaccinationFirstDoseUptakeByPublishDatePercentage + workplaces_av, data=combined_england_lockdown1, family="binomial")
+tbl_regression(model_logistic_l1, exponentiate = TRUE)
+
+
+
+## Lockdown 2 only ---------------------------------------------------------
+
+model_logistic_l2 <- glm(r_range ~  cumVaccinationFirstDoseUptakeByPublishDatePercentage + workplaces, data=combined_england_lockdown2, family="binomial")
+tbl_regression(model_logistic_l2, exponentiate = TRUE)
+
+
+## Lockdown 3 only ---------------------------------------------------------
+
+model_logistic_l3 <- glm(r_range ~  cumVaccinationFirstDoseUptakeByPublishDatePercentage + cumVaccinationSecondDoseUptakeByPublishDatePercentage+ workplaces, data=combined_england_lockdown3, family="binomial")
+tbl_regression(model_logistic_l3, exponentiate = TRUE)
+
+# This doesn't work??
+
+
+
+
+
+
+
+
+# Regional ----------------------------------------------------------------
+
+combined_regional <- readRDS("~/Desktop/Masters/Project/Analysis/R_regression/Data_outputs/combined_regional.rds")
+
+regions_list <- unique(combined_regional$region)
+regions_list
+
+regional_summary <- NA
+
+for (i in 1:length(regions_list)){
+  region_interest <- regions_list[i]
+  data <- combined_regional %>% filter(region == region_interest)
+  model <- lm(r ~ workplaces + lockdown_any, data = data)
+  summary <- cbind(summary(model)$coef, confint(model))
+  summary <- as.data.frame(summary)
+  summary$region <- region_interest
+  regional_summary <- rbind(regional_summary, summary)
+}
+
+regional_summary <- regional_summary[-1,]
+regional_summary
+
+
+rownames(regional_summary)
+
+# Looking just at the workplaces coefficients
+regional_summary_workplaces <- regional_summary %>% filter(grepl("workplaces", rownames(regional_summary)))
+regional_summary_workplaces
+# All significant except for North East and West Midlands
+
+regional_summary_workplaces$region <- as.fac
+
+ggplot(regional_summary_workplaces)+
+  geom_bar(aes(y=Estimate))+
+  facet_wrap(.~region)
