@@ -159,6 +159,8 @@ map_counties <- map_template +
         #                        limits=colour_limits, breaks=breaks) +
         theme(
           legend.position = "left",
+          legend.title = element_text(size=16),
+          legend.text = element_text(size=12),
           plot.title = element_text(hjust=0.5, size=14, face="bold"),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
@@ -288,3 +290,6 @@ boxplot_beta_workplace_final
 plot_grid(boxplot_beta_workplace_final,
           map_counties_without_legend,
           nrow=2)
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs/Regression/Plots")
+ggsave(filename = "map_boxplot_betas_counties.png")
