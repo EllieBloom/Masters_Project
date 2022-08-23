@@ -104,7 +104,7 @@ map_counties <- map_template +
 
 map_counties
 
-merge(county_locations, beta, by="region"
+merge(county_locations, beta, by="region")
       
 # Adding betas in  --------------------------------------------------------
       
@@ -185,6 +185,125 @@ map_counties_without_legend
 
 
 
+# Map with counties numbered ----------------------------------------------
+
+
+map_template_alt <- ggplot(eng) + 
+  geom_sf(fill="white",color="grey") +
+  scale_fill_brewer(palette="Paired") +
+  theme_bw() +
+  guides(fill=guide_legend(title="Region"))+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    legend.position = "none",
+    legend.key = element_rect(fill = "transparent")
+  ) 
+
+map_template_alt
+
+
+library(ggrepel)
+
+map_counties_labelled <-map_template_alt +
+  geom_point(data=county_locations, aes(x=Latitude, y=Longitude), size=1, color="navy blue", shape="diamond")+
+  geom_text_repel(data=county_locations,aes(x=Latitude, y=Longitude, label=County_number), color="navy blue",
+                  # hjust=0, 
+                  # vjust=0,
+                  #nudge_x = .15,
+                  box.padding=0.5,
+                  point.padding=0.0001)+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    # legend.key = element_rect(fill = "transparent"),
+    plot.margin = unit(c(0, 0, 0, 0), "cm"),
+    panel.border = element_blank(),
+    # strip.background = element_blank(),
+    # strip.text.x = element_blank()
+    ) 
+
+
+map_counties_labelled
+
+
+map_counties_labelled_alt <-map_template_alt +
+  geom_point(data=county_locations, aes(x=Latitude, y=Longitude), size=5, color="tomato", alpha=0.9)+
+  geom_text(data=county_locations,aes(x=Latitude, y=Longitude, label=County_number), color="white", size=3, fontface="bold")+
+  #scale_color_manual(data=county_locations,values = c(rep('tomato', nrow(county_locations))), labels = County) +
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    # legend.key = element_rect(fill = "transparent"),
+    plot.margin = unit(c(0, 0, 0, 0), "cm"),
+    panel.border = element_blank(),
+    # strip.background = element_blank(),
+    # strip.text.x = element_blank()
+  ) 
+
+
+map_counties_labelled_alt
+
+
+#Legend
+
+county_locations$X=0
+
+county_locations_1 <- county_locations[1:43,]
+county_locations_2 <- county_locations[44:85,]
+
+county_labels <- ggplot()+
+  geom_point(data=county_locations_1,aes(x=X-9,y=85-County_number),size=5, color="tomato", alpha=0.9)+
+  geom_text(data=county_locations_1,aes(x=X-9,y=85-County_number, label=County_number),, color="white", size=3, fontface="bold")+
+  geom_text(data=county_locations_1,aes(x=X-8,y=85-County_number, label=County), hjust=0,color="black")+
+  geom_point(data=county_locations_2,aes(x=X,y=85-County_number+43),size=5, color="tomato", alpha=0.9)+
+  geom_text(data=county_locations_2,aes(x=X,y=85-County_number+43, label=County_number),, color="white", size=3, fontface="bold")+
+  geom_text(data=county_locations_2,aes(x=X+1,y=85-County_number+43, label=County), hjust=0,color="black")+
+  theme_bw()+
+  theme(
+    legend.position = "right",
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.title.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    # legend.key = element_rect(fill = "transparent"),
+    plot.margin = unit(c(0, 0, 0, 0), "cm"),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    strip.text.x = element_blank()
+  )+
+  xlim(-10,10)
+
+
+# Arrange labels with map
+
+plot_grid(map_counties_labelled_alt,
+          county_labels,
+          nrow=1, rel_widths = c(1.2,1))
+
+setwd("~/Desktop/Masters/Project/Analysis/NPIs_mobility_updated/Outputs")
+ggsave(filename = "map_counties_reference.png")
 # Boxplot -----------------------------------------------------------------
 
 
